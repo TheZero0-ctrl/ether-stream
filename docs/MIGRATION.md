@@ -88,7 +88,7 @@ Build first:
 
 Set up:
 
-- SQLite schema or chosen structured persistence model
+- SQLite schema via sqlx migrations (`src-tauri/migrations/`)
 - repositories for settings, library, progress, downloads
 - import/export schema shape
 

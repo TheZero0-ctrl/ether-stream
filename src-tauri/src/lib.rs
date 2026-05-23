@@ -1,6 +1,8 @@
 use serde::Serialize;
+use tauri::Manager;
 
 mod commands;
+mod database;
 mod services;
 
 use commands::anime::{
@@ -54,6 +56,11 @@ fn get_bootstrap_state() -> BootstrapState {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            let db = database::initialize(app.handle())?;
+            app.manage(db);
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             get_bootstrap_state,
             anime_get_details,

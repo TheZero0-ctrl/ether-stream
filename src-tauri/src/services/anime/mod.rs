@@ -1,6 +1,11 @@
+pub mod cache_policy;
 pub mod classifier;
+pub mod errors;
 pub mod mapping;
 pub mod metadata;
+pub mod models;
 pub mod playback;
+pub mod repository;
+pub mod repository_sqlx;
 pub mod resolver;
 pub mod skip;

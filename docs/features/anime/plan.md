@@ -57,45 +57,49 @@ This is not an MVP-only plan. The target is full anime capability parity-plus qu
 
 ## Phase 2 - Canonical Models and Contracts
 
-- [ ] Implement Rust models from docs:
-  - [ ] `AnimeIdentity`
-  - [ ] `AnimeDetails`
-  - [ ] `AnimeSeason`
-  - [ ] `AnimeEpisode`
-  - [ ] `AnimePlaybackRequest`
-  - [ ] `AnimePlaybackSource`
-  - [ ] `SkipSegment`
-  - [ ] `AnimeSkipTimings`
-  - [ ] `AnimeDownloadPayload`
-  - [ ] `AnimeSettings`
-- [ ] Implement structured error categories:
-  - [ ] `AnimeNotClassified`
-  - [ ] `AnilistMatchMissing`
-  - [ ] `SeasonMappingFailed`
-  - [ ] `ProviderSearchFailed`
-  - [ ] `ProviderEpisodeMissing`
-  - [ ] `PlayableSourceMissing`
-  - [ ] `TranslationUnavailable`
-- [ ] Mirror all command/event payloads in TypeScript types.
-- [ ] Add contract serialization tests for Rust <-> frontend payload compatibility.
+- [x] Implement Rust models from docs:
+  - [x] `AnimeIdentity`
+  - [x] `AnimeDetails`
+  - [x] `AnimeSeason`
+  - [x] `AnimeEpisode`
+  - [x] `AnimePlaybackRequest`
+  - [x] `AnimePlaybackSource`
+  - [x] `SkipSegment`
+  - [x] `AnimeSkipTimings`
+  - [x] `AnimeDownloadPayload`
+  - [x] `AnimeSettings`
+- [x] Implement structured error categories:
+  - [x] `AnimeNotClassified`
+  - [x] `AnilistMatchMissing`
+  - [x] `SeasonMappingFailed`
+  - [x] `ProviderSearchFailed`
+  - [x] `ProviderEpisodeMissing`
+  - [x] `PlayableSourceMissing`
+  - [x] `TranslationUnavailable`
+- [x] Mirror all command/event payloads in TypeScript types.
+- [x] Add contract serialization tests for Rust <-> frontend payload compatibility.
 
 ## Phase 3 - Persistence and Cache Layer
 
-- [ ] Add DB schema/migrations for anime domain:
-  - [ ] Anime identity cache
-  - [ ] AniList metadata cache
-  - [ ] Episode mapping cache
-  - [ ] Playback progress by canonical episode key
-  - [ ] Skip timings cache
-  - [ ] Translation preference settings
-- [ ] Create repositories:
-  - [ ] `AnimeRepository`
-  - [ ] `AnimeCacheRepository`
-  - [ ] `AnimeProgressRepository`
-- [ ] Define TTL and invalidation policy:
-  - [ ] AniList metadata TTL
-  - [ ] Provider lookup TTL
-  - [ ] Skip timings TTL
+Persistence stack note:
+
+- SQLite + sqlx migrations/repositories (see `docs/adr/0002-persistence-stack-sqlx-sqlite.md`).
+
+- [x] Add DB schema/migrations for anime domain:
+  - [x] Anime identity cache
+  - [x] AniList metadata cache
+  - [x] Episode mapping cache
+  - [x] Playback progress by canonical episode key
+  - [x] Skip timings cache
+  - [x] Translation preference settings
+- [x] Create repositories:
+  - [x] `AnimeRepository`
+  - [x] `AnimeCacheRepository`
+  - [x] `AnimeProgressRepository`
+- [x] Define TTL and invalidation policy:
+  - [x] AniList metadata TTL
+  - [x] Provider lookup TTL
+  - [x] Skip timings TTL
 
 ## Phase 4 - Classifier Service
 
