@@ -1,14 +1,52 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+use serde::Serialize;
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AppMetadata {
+    name: &'static str,
+    version: &'static str,
+    frontend: &'static str,
+    backend: &'static str,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BootstrapState {
+    app: AppMetadata,
+    capabilities: Vec<&'static str>,
+    next_steps: Vec<&'static str>,
+}
+
 #[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+fn get_bootstrap_state() -> BootstrapState {
+    BootstrapState {
+        app: AppMetadata {
+            name: "Ether",
+            version: env!("CARGO_PKG_VERSION"),
+            frontend: "React + TypeScript",
+            backend: "Rust + Tauri",
+        },
+        capabilities: vec![
+            "native secrets and settings",
+            "desktop filesystem access",
+            "downloads orchestration",
+            "subtitle and source services",
+            "window and updater integration",
+        ],
+        next_steps: vec![
+            "add persistent storage layer",
+            "define TMDB and AniList client modules",
+            "port download manager into Rust services",
+            "build media library and playback flows",
+        ],
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .invoke_handler(tauri::generate_handler![get_bootstrap_state])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

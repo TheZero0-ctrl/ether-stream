@@ -1,49 +1,85 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
+import { useEffect, useState } from "react";
+import { getBootstrapState } from "./lib/tauri";
+import type { BootstrapState } from "./types/bootstrap";
 import "./App.css";
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  const [state, setState] = useState<BootstrapState | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
+  useEffect(() => {
+    let cancelled = false;
+
+    getBootstrapState()
+      .then((result) => {
+        if (!cancelled) setState(result);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "Failed to load bootstrap state.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
+    <main className="app-shell">
+      <section className="hero-panel">
+        <div className="eyebrow">Tauri Rewrite Foundation</div>
+        <h1>Ether</h1>
+        <p className="hero-copy">
+          Desktop-first foundation for rebuilding Streambert with a Rust core and a
+          React frontend.
+        </p>
+        <div className="hero-meta">
+          <span>Frontend: React + TypeScript</span>
+          <span>Backend: Rust + Tauri</span>
+        </div>
+      </section>
 
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
+      <section className="grid">
+        <article className="card">
+          <h2>Bootstrap State</h2>
+          {!state && !error && <p className="muted">Loading data from Rust...</p>}
+          {error && <p className="error">{error}</p>}
+          {state && (
+            <dl className="details-list">
+              <div>
+                <dt>App</dt>
+                <dd>{state.app.name}</dd>
+              </div>
+              <div>
+                <dt>Version</dt>
+                <dd>{state.app.version}</dd>
+              </div>
+              <div>
+                <dt>Frontend</dt>
+                <dd>{state.app.frontend}</dd>
+              </div>
+              <div>
+                <dt>Backend</dt>
+                <dd>{state.app.backend}</dd>
+              </div>
+            </dl>
+          )}
+        </article>
 
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
+        <article className="card">
+          <h2>Native Capabilities</h2>
+          <ul className="feature-list">
+            {state?.capabilities.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </article>
+
+        <article className="card card-wide">
+          <h2>Suggested Next Steps</h2>
+          <ol className="step-list">
+            {state?.nextSteps.map((item: string) => <li key={item}>{item}</li>)}
+          </ol>
+        </article>
+      </section>
     </main>
   );
 }
