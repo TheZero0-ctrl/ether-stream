@@ -1,5 +1,13 @@
 use serde::Serialize;
 
+mod commands;
+mod services;
+
+use commands::anime::{
+    anime_get_details, anime_get_episode_list, anime_get_skip_timings, anime_prepare_download,
+    anime_resolve_playback, anime_set_translation_mode,
+};
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct AppMetadata {
@@ -46,7 +54,15 @@ fn get_bootstrap_state() -> BootstrapState {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![get_bootstrap_state])
+        .invoke_handler(tauri::generate_handler![
+            get_bootstrap_state,
+            anime_get_details,
+            anime_get_episode_list,
+            anime_resolve_playback,
+            anime_get_skip_timings,
+            anime_set_translation_mode,
+            anime_prepare_download
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

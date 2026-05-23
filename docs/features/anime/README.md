@@ -18,6 +18,8 @@ These docs are implementation-oriented. They are intended to guide the Rust serv
   Provider resolution flow from TMDB to AniList to stream resolver.
 - `playback.md`
   Playback, progress, sub/dub, AniSkip, subtitles, and downloads interaction.
+- `naming-conventions.md`
+  Command, event, model, and module naming rules for anime contracts.
 - `migration-notes.md`
   What exists in Streambert today, what to preserve, and what to redesign.
 

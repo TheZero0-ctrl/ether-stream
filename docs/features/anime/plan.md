@@ -25,35 +25,35 @@ This is not an MVP-only plan. The target is full anime capability parity-plus qu
 
 - [x] Confirm architecture constraints in docs/ADR for anime.
 - [x] Create epic/tracking issue: `Anime Feature Slice`.
-- [ ] Define milestone boundaries and acceptance criteria per phase.
-- [ ] Confirm naming conventions for commands, events, and model types.
+- [x] Define milestone boundaries and acceptance criteria per phase.
+- [x] Confirm naming conventions for commands, events, and model types.
 
 ## Phase 1 - Feature Scaffolding
 
-- [ ] Create Rust anime service modules:
-  - [ ] `src-tauri/src/services/anime/classifier`
-  - [ ] `src-tauri/src/services/anime/metadata`
-  - [ ] `src-tauri/src/services/anime/mapping`
-  - [ ] `src-tauri/src/services/anime/resolver`
-  - [ ] `src-tauri/src/services/anime/skip`
-  - [ ] `src-tauri/src/services/anime/playback`
-- [ ] Add command stubs:
-  - [ ] `anime_get_details`
-  - [ ] `anime_get_episode_list`
-  - [ ] `anime_resolve_playback`
-  - [ ] `anime_get_skip_timings`
-  - [ ] `anime_set_translation_mode`
-  - [ ] `anime_prepare_download`
-- [ ] Add event names and shared payload placeholders:
-  - [ ] `anime-playback-ready`
-  - [ ] `anime-playback-failed`
-  - [ ] `anime-progress-updated`
-  - [ ] `anime-skip-segment-active`
-- [ ] Create frontend feature folders:
-  - [ ] `src/features/anime/api`
-  - [ ] `src/features/anime/types`
-  - [ ] `src/features/anime/hooks`
-  - [ ] `src/features/anime/components`
+- [x] Create Rust anime service modules:
+  - [x] `src-tauri/src/services/anime/classifier`
+  - [x] `src-tauri/src/services/anime/metadata`
+  - [x] `src-tauri/src/services/anime/mapping`
+  - [x] `src-tauri/src/services/anime/resolver`
+  - [x] `src-tauri/src/services/anime/skip`
+  - [x] `src-tauri/src/services/anime/playback`
+- [x] Add command stubs:
+  - [x] `anime_get_details`
+  - [x] `anime_get_episode_list`
+  - [x] `anime_resolve_playback`
+  - [x] `anime_get_skip_timings`
+  - [x] `anime_set_translation_mode`
+  - [x] `anime_prepare_download`
+- [x] Add event names and shared payload placeholders:
+  - [x] `anime-playback-ready`
+  - [x] `anime-playback-failed`
+  - [x] `anime-progress-updated`
+  - [x] `anime-skip-segment-active`
+- [x] Create frontend feature folders:
+  - [x] `src/features/anime/api`
+  - [x] `src/features/anime/types`
+  - [x] `src/features/anime/hooks`
+  - [x] `src/features/anime/components`
 
 ## Phase 2 - Canonical Models and Contracts
 
