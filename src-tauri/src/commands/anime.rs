@@ -1,10 +1,18 @@
 use serde::{Deserialize, Serialize};
+use tauri::State;
 
+use crate::database::AppDatabase;
 use crate::services::anime::errors::{AnimeCommandError, AnimeErrorCategory};
 use crate::services::anime::classifier::{AnimeClassificationInput, AnimeClassifierService};
+use crate::services::anime::metadata::{
+    AnilistCandidate, AnilistLookupResult, AnimeMetadataService, MetadataEnrichmentError,
+    TmdbMetadataInput,
+};
+use crate::services::anime::mapping::{AnimeMappingService, MappingEpisodeInput, MappingInput};
+use crate::services::anime::repository_sqlx::AnimeSqlxRepository;
 use crate::services::anime::models::{
-    AnimeDetails, AnimeDownloadPayload, AnimeEpisode, AnimeIdentity, AnimeIntroSkipMode,
-    AnimeMediaKind, AnimePlaybackRequest, AnimePlaybackSource, AnimeSeason, AnimeSeasonSourceKind,
+    AnimeDetails, AnimeDownloadPayload, AnimeIdentity, AnimeIntroSkipMode, AnimeMediaKind,
+    AnimePlaybackRequest, AnimePlaybackSource, AnimeSeason,
     AnimeSettings, AnimeSkipTimings, AnimeSourceConfidence, AnimeTranslationMode,
     DiscoveredSubtitle, SkipSegment,
 };
@@ -20,6 +28,13 @@ pub struct AnimeGetDetailsRequest {
     pub tmdb_id: Option<i64>,
     pub anilist_id: Option<i64>,
     pub mal_id: Option<i64>,
+    pub title: Option<String>,
+    pub overview: Option<String>,
+    pub poster_url: Option<String>,
+    pub backdrop_url: Option<String>,
+    pub genres: Option<Vec<String>>,
+    pub release_year: Option<i32>,
+    pub status: Option<String>,
     pub has_animation_genre: bool,
     pub original_language: Option<String>,
     pub origin_countries: Vec<String>,
@@ -35,6 +50,9 @@ pub struct AnimeGetDetailsResponse {
 #[serde(rename_all = "camelCase")]
 pub struct AnimeGetEpisodeListRequest {
     pub identity: AnimeIdentity,
+    pub is_movie: bool,
+    pub tmdb_episodes: Vec<MappingEpisodeInput>,
+    pub anilist_episode_count: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -122,7 +140,10 @@ pub struct AnimeSkipSegmentActiveEventPayload {
 }
 
 #[tauri::command]
-pub fn anime_get_details(request: AnimeGetDetailsRequest) -> Result<AnimeGetDetailsResponse, AnimeCommandError> {
+pub fn anime_get_details(
+    request: AnimeGetDetailsRequest,
+    db: State<'_, AppDatabase>,
+) -> Result<AnimeGetDetailsResponse, AnimeCommandError> {
     let classifier = AnimeClassifierService::new();
     let classification = classifier.classify(&AnimeClassificationInput {
         has_animation_genre: request.has_animation_genre,
@@ -142,66 +163,113 @@ pub fn anime_get_details(request: AnimeGetDetailsRequest) -> Result<AnimeGetDeta
         });
     }
 
-    let source_confidence = if classification.confidence >= 0.85 {
-        AnimeSourceConfidence::High
-    } else if classification.confidence >= 0.7 {
-        AnimeSourceConfidence::Medium
-    } else {
-        AnimeSourceConfidence::Low
-    };
+    let metadata_service = AnimeMetadataService::new();
 
-    let identity = AnimeIdentity {
-        media_kind: AnimeMediaKind::AnimeSeries,
+    let tmdb_input = TmdbMetadataInput {
         tmdb_id: request.tmdb_id,
-        anilist_id: request.anilist_id,
-        mal_id: request.mal_id,
-        canonical_title: "Unknown Anime".to_string(),
-        romaji_title: None,
-        english_title: None,
-        native_title: None,
-        title_aliases: Vec::new(),
+        media_kind: AnimeMediaKind::AnimeSeries,
+        title: request
+            .title
+            .unwrap_or_else(|| "Unknown Anime".to_string()),
+        overview: request.overview,
+        poster_url: request.poster_url,
+        backdrop_url: request.backdrop_url,
+        genres: request.genres.unwrap_or_default(),
+        release_year: request.release_year,
+        status: request.status,
     };
 
-    Ok(AnimeGetDetailsResponse {
-        details: AnimeDetails {
-            identity,
-            overview: None,
-            poster_url: None,
-            backdrop_url: None,
-            genres: Vec::new(),
+    let anilist_lookup = if let Some(anilist_id) = request.anilist_id {
+        AnilistLookupResult::Found(AnilistCandidate {
+            anilist_id,
+            mal_id: request.mal_id,
+            canonical_title: tmdb_input.title.clone(),
+            romaji_title: None,
+            english_title: Some(tmdb_input.title.clone()),
+            native_title: None,
+            aliases: vec![tmdb_input.title.clone()],
             score: None,
-            release_year: None,
-            status: None,
-            source_confidence,
-        },
+        })
+    } else {
+        AnilistLookupResult::Missing
+    };
+
+    match metadata_service.enrich(tmdb_input, anilist_lookup) {
+        Ok(output) => Ok(AnimeGetDetailsResponse {
+            details: {
+                let details = AnimeDetails {
+                source_confidence: if classification.confidence >= 0.85 {
+                    AnimeSourceConfidence::High
+                } else if classification.confidence >= 0.7 {
+                    AnimeSourceConfidence::Medium
+                } else {
+                    AnimeSourceConfidence::Low
+                },
+                ..output.details
+                };
+
+                persist_resolved_identity(&db, &details.identity)?;
+                details
+            },
+        }),
+        Err(MetadataEnrichmentError::MissingMatch) => Err(AnimeCommandError {
+            category: AnimeErrorCategory::AnilistMatchMissing,
+            message: "no AniList match found for anime metadata enrichment".to_string(),
+            context: request.tmdb_id.map(|id| format!("tmdb_id={id}")),
+        }),
+        Err(MetadataEnrichmentError::AmbiguousMatch { candidate_ids }) => Err(AnimeCommandError {
+            category: AnimeErrorCategory::AnilistMatchMissing,
+            message: "multiple AniList candidates found; reconciliation needed".to_string(),
+            context: Some(format!("candidate_ids={candidate_ids:?}")),
+        }),
+    }
+}
+
+fn persist_resolved_identity(
+    db: &State<'_, AppDatabase>,
+    identity: &AnimeIdentity,
+) -> Result<(), AnimeCommandError> {
+    if identity.anilist_id.is_none() && identity.mal_id.is_none() {
+        return Ok(());
+    }
+
+    let identity_key = build_identity_key(identity);
+    let repository = AnimeSqlxRepository::new(db.0.clone());
+
+    tauri::async_runtime::block_on(async {
+        repository
+            .upsert_identity(&identity_key, identity)
+            .await
+            .map_err(|err| AnimeCommandError {
+                category: AnimeErrorCategory::AnilistMatchMissing,
+                message: "failed to persist resolved anime identity".to_string(),
+                context: Some(err.to_string()),
+            })
     })
+}
+
+fn build_identity_key(identity: &AnimeIdentity) -> String {
+    format!(
+        "tmdb:{:?}|anilist:{:?}|mal:{:?}",
+        identity.tmdb_id, identity.anilist_id, identity.mal_id
+    )
 }
 
 #[tauri::command]
 pub fn anime_get_episode_list(
     request: AnimeGetEpisodeListRequest,
 ) -> Result<AnimeGetEpisodeListResponse, AnimeCommandError> {
-    let season = AnimeSeason {
-        season_number: 1,
-        title: "Season 1".to_string(),
-        episode_count: Some(1),
-        source_kind: AnimeSeasonSourceKind::Hybrid,
-        episodes: vec![AnimeEpisode {
-            display_episode_number: 1,
-            canonical_episode_number: 1,
-            season_number: 1,
-            title: Some("Episode 1".to_string()),
-            overview: None,
-            runtime_minutes: None,
-            air_date: None,
-            tmdb_reference: None,
-            provider_reference: None,
-        }],
-    };
+    let mapper = AnimeMappingService::new();
+    let output = mapper.map(MappingInput {
+        is_movie: request.is_movie,
+        tmdb_episodes: request.tmdb_episodes,
+        anilist_episode_count: request.anilist_episode_count,
+        provider: None,
+    });
 
     Ok(AnimeGetEpisodeListResponse {
         identity: request.identity,
-        seasons: vec![season],
+        seasons: output.seasons,
     })
 }
 

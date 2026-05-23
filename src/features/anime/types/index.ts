@@ -157,6 +157,13 @@ export type AnimeGetDetailsRequest = {
   tmdbId: number | null;
   anilistId: number | null;
   malId: number | null;
+  title: string | null;
+  overview: string | null;
+  posterUrl: string | null;
+  backdropUrl: string | null;
+  genres: string[] | null;
+  releaseYear: number | null;
+  status: string | null;
   hasAnimationGenre: boolean;
   originalLanguage: string | null;
   originCountries: string[];
@@ -168,11 +175,22 @@ export type AnimeGetDetailsResponse = {
 
 export type AnimeGetEpisodeListRequest = {
   identity: AnimeIdentity;
+  isMovie: boolean;
+  tmdbEpisodes: MappingEpisodeInput[];
+  anilistEpisodeCount: number | null;
 };
 
 export type AnimeGetEpisodeListResponse = {
   identity: AnimeIdentity;
   seasons: AnimeSeason[];
+};
+
+export type MappingEpisodeInput = {
+  tmdbSeasonNumber: number | null;
+  tmdbEpisodeNumber: number | null;
+  anilistEpisodeNumber: number | null;
+  title: string | null;
+  runtimeMinutes: number | null;
 };
 
 export type AnimeResolvePlaybackResponse = {

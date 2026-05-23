@@ -103,32 +103,32 @@ Persistence stack note:
 
 ## Phase 4 - Classifier Service
 
-- [ ] Implement initial classifier compatibility heuristic:
-  - [ ] Animation genre signal
-  - [ ] Japanese language/origin signal
-- [ ] Return `is_anime`, confidence, and reasons.
-- [ ] Add unit tests for positive/negative and edge cases.
+- [x] Implement initial classifier compatibility heuristic:
+  - [x] Animation genre signal
+  - [x] Japanese language/origin signal
+- [x] Return `is_anime`, confidence, and reasons.
+- [x] Add unit tests for positive/negative and edge cases.
 - [ ] Integrate classifier into detail/search entry flows.
 
 ## Phase 5 - Metadata Enrichment Service
 
-- [ ] Normalize TMDB input metadata.
-- [ ] Implement AniList lookup + identity reconciliation.
-- [ ] Persist `anilist_id` and `mal_id` when resolved.
-- [ ] Normalize titles (canonical/romaji/english/native/aliases).
-- [ ] Build and return canonical `AnimeDetails`.
-- [ ] Add tests for found/ambiguous/missing/cached match scenarios.
+- [x] Normalize TMDB input metadata.
+- [x] Implement AniList lookup + identity reconciliation.
+- [x] Persist `anilist_id` and `mal_id` when resolved.
+- [x] Normalize titles (canonical/romaji/english/native/aliases).
+- [x] Build and return canonical `AnimeDetails`.
+- [x] Add tests for found/ambiguous/missing/cached match scenarios.
 
 ## Phase 6 - Season and Episode Mapping
 
-- [ ] Implement canonical mapping service for TMDB + AniList + provider numbering.
-- [ ] Return unified `AnimeSeason` and `AnimeEpisode` models.
-- [ ] Support movie and series mapping paths.
-- [ ] Add diagnostics for mapping decisions.
-- [ ] Add tests for:
-  - [ ] Linear seasons
-  - [ ] Split/virtual season behavior
-  - [ ] Missing episode metadata fallback
+- [x] Implement canonical mapping service for TMDB + AniList + provider numbering.
+- [x] Return unified `AnimeSeason` and `AnimeEpisode` models.
+- [x] Support movie and series mapping paths.
+- [x] Add diagnostics for mapping decisions.
+- [x] Add tests for:
+  - [x] Linear seasons
+  - [x] Split/virtual season behavior
+  - [x] Missing episode metadata fallback
 
 ## Phase 7 - Provider Resolver
 
@@ -185,20 +185,20 @@ Persistence stack note:
 
 ## Phase 11 - Frontend Integration (Thin Client)
 
-- [ ] Implement typed command wrappers in `src/features/anime/api`.
-- [ ] Implement hooks:
-  - [ ] `useAnimeDetails`
-  - [ ] `useAnimeEpisodes`
-  - [ ] `useAnimePlaybackSession`
-  - [ ] `useAnimeSkipState`
-- [ ] Implement components:
-  - [ ] Anime labels/badges
-  - [ ] Episode selector
-  - [ ] Sub/dub toggle
-  - [ ] Skip prompt UI (manual mode)
-  - [ ] Playback error/fallback states
-- [ ] Ensure components contain no provider-resolution logic.
-- [ ] Verify responsive behavior on desktop and mobile layouts.
+- [x] Implement typed command wrappers in `src/features/anime/api`.
+- [x] Implement hooks:
+  - [x] `useAnimeDetails`
+  - [x] `useAnimeEpisodes`
+  - [x] `useAnimePlaybackSession`
+  - [x] `useAnimeSkipState`
+- [x] Implement components:
+  - [x] Anime labels/badges
+  - [x] Episode selector
+  - [x] Sub/dub toggle
+  - [x] Skip prompt UI (manual mode)
+  - [x] Playback error/fallback states
+- [x] Ensure components contain no provider-resolution logic.
+- [x] Verify responsive behavior on desktop and mobile layouts.
 
 ## Phase 12 - Settings, UX, and Diagnostics
 
