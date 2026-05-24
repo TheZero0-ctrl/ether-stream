@@ -39,6 +39,7 @@ pub struct AnimeDetails {
     pub backdrop_url: Option<String>,
     pub genres: Vec<String>,
     pub score: Option<f32>,
+    pub total_episodes: Option<i32>,
     pub release_year: Option<i32>,
     pub status: Option<String>,
     pub source_confidence: AnimeSourceConfidence,
@@ -70,7 +71,7 @@ pub struct TmdbEpisodeRef {
     pub episode_number: i32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum AnimeProvider {
     Gogoanime,
@@ -103,7 +104,7 @@ pub struct AnimeEpisode {
     pub provider_reference: Option<ProviderEpisodeRef>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum AnimeTranslationMode {
     Sub,
@@ -188,8 +189,11 @@ pub struct AnimeDownloadPayload {
     pub tmdb_id: Option<i64>,
     pub season_number: Option<i32>,
     pub episode_number: Option<i32>,
+    pub identity_key: String,
+    pub file_name: String,
     pub playback_url: String,
     pub referer: Option<String>,
+    pub request_headers: Vec<(String, String)>,
     pub subtitle_candidates: Vec<ResolvedSubtitle>,
 }
 

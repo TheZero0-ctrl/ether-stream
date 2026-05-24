@@ -132,56 +132,56 @@ Persistence stack note:
 
 ## Phase 7 - Provider Resolver
 
-- [ ] Define provider resolver interface and pipeline steps.
-- [ ] Implement backend title candidate generation from normalized aliases.
-- [ ] Implement provider search and best-match selection.
-- [ ] Implement source extraction/decoding and output normalization.
-- [ ] Implement sub/dub fallback and explicit translation errors.
-- [ ] Isolate hardcoded compatibility overrides in dedicated layer.
-- [ ] Return canonical `AnimePlaybackSource`.
-- [ ] Add tests for:
-  - [ ] Sub successful resolution
-  - [ ] Dub successful resolution
-  - [ ] Dub fallback to sub
-  - [ ] No source/error typing
-  - [ ] Provider timeout/retry behavior
-  - [ ] Title alias collision behavior
+- [x] Define provider resolver interface and pipeline steps.
+- [x] Implement backend title candidate generation from normalized aliases.
+- [x] Implement provider search and best-match selection.
+- [x] Implement source extraction/decoding and output normalization.
+- [x] Implement sub/dub fallback and explicit translation errors.
+- [x] Isolate hardcoded compatibility overrides in dedicated layer.
+- [x] Return canonical `AnimePlaybackSource`.
+- [x] Add tests for:
+  - [x] Sub successful resolution
+  - [x] Dub successful resolution
+  - [x] Dub fallback to sub
+  - [x] No source/error typing
+  - [x] Provider timeout/retry behavior
+  - [x] Title alias collision behavior
 
 ## Phase 8 - Playback Session Orchestration
 
 - [ ] Implement anime playback session model:
-  - [ ] Session start
-  - [ ] Source selected
-  - [ ] Translation mode
-  - [ ] Progress updates
+  - [x] Session start
+  - [x] Source selected
+  - [x] Translation mode
+  - [x] Progress updates
   - [ ] Session end
-- [ ] Emit typed playback lifecycle events.
-- [ ] Integrate with shared playback subsystem:
-  - [ ] Remote webview-backed mode
-  - [ ] Local proxy mode
-  - [ ] Offline/local file mode
-- [ ] Persist progress and apply watched-threshold rules.
-- [ ] Add tests for resume behavior and mode switching.
+- [x] Emit typed playback lifecycle events.
+- [x] Integrate with shared playback subsystem:
+  - [x] Remote webview-backed mode
+  - [x] Local proxy mode
+  - [x] Offline/local file mode
+- [x] Persist progress and apply watched-threshold rules.
+- [x] Add tests for resume behavior and mode switching.
 
 ## Phase 9 - AniSkip Integration
 
-- [ ] Implement AniSkip fetch by `mal_id + episode_number`.
-- [ ] Cache skip timings and expose canonical segments.
+- [x] Implement AniSkip fetch by `mal_id + episode_number`.
+- [x] Cache skip timings and expose canonical segments.
 - [ ] Support modes:
-  - [ ] `off`
-  - [ ] `auto`
-  - [ ] `manual`
-- [ ] Gate skip activation by identity, seekability, and mode.
-- [ ] Emit `anime-skip-segment-active` events for UI.
-- [ ] Add tests for boundary timing and no-data behavior.
+  - [x] `off`
+  - [x] `auto`
+  - [x] `manual`
+- [x] Gate skip activation by identity, seekability, and mode.
+- [x] Emit `anime-skip-segment-active` events for UI.
+- [x] Add tests for boundary timing and no-data behavior.
 
 ## Phase 10 - Subtitle and Download Preparation
 
-- [ ] Normalize subtitle candidates to shared subtitle model.
-- [ ] Implement `anime_prepare_download` backend path.
-- [ ] Return full `AnimeDownloadPayload` with media URL, headers, identity, subtitle candidates, and filename metadata.
+- [x] Normalize subtitle candidates to shared subtitle model.
+- [x] Implement `anime_prepare_download` backend path.
+- [x] Return full `AnimeDownloadPayload` with media URL, headers, identity, subtitle candidates, and filename metadata.
 - [ ] Validate integration with shared download queue system.
-- [ ] Add tests for payload completeness and failure paths.
+- [x] Add tests for payload completeness and failure paths.
 
 ## Phase 11 - Frontend Integration (Thin Client)
 
@@ -228,7 +228,6 @@ Persistence stack note:
 
 ## Phase 14 - Rollout
 
-- [ ] Gate feature behind `anime_feature_enabled` flag.
 - [ ] Run internal QA checklist across supported OS targets.
 - [ ] Enable for development builds.
 - [ ] Run beta with telemetry and error monitoring.

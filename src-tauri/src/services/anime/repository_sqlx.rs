@@ -166,6 +166,37 @@ impl AnimeSqlxCacheRepository {
 
         Ok(())
     }
+
+    pub async fn get_skip_timings(
+        &self,
+        mal_id: i64,
+        episode_number: i32,
+    ) -> Result<Option<AnimeSkipTimings>, sqlx::Error> {
+        let row = sqlx::query(
+            "SELECT segments_json
+             FROM anime_skip_timings_cache
+             WHERE mal_id = ? AND episode_number = ? AND expires_at > CURRENT_TIMESTAMP",
+        )
+        .bind(mal_id)
+        .bind(episode_number)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        match row {
+            Some(row) => {
+                let segments_json: String = row.try_get("segments_json")?;
+                let segments = serde_json::from_str(&segments_json)
+                    .map_err(|err| sqlx::Error::Protocol(err.to_string()))?;
+
+                Ok(Some(AnimeSkipTimings {
+                    mal_id,
+                    episode_number,
+                    segments,
+                }))
+            }
+            None => Ok(None),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -205,5 +236,29 @@ impl AnimeSqlxProgressRepository {
         .await?;
 
         Ok(())
+    }
+
+    pub async fn get_progress(
+        &self,
+        canonical_episode_key: &str,
+    ) -> Result<Option<(f64, Option<f64>, bool)>, sqlx::Error> {
+        let row = sqlx::query(
+            "SELECT progress_seconds, duration_seconds, watched_completed
+             FROM anime_progress
+             WHERE canonical_episode_key = ?",
+        )
+        .bind(canonical_episode_key)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        match row {
+            Some(row) => {
+                let progress: f64 = row.try_get("progress_seconds")?;
+                let duration: Option<f64> = row.try_get("duration_seconds")?;
+                let watched: i64 = row.try_get("watched_completed")?;
+                Ok(Some((progress, duration, watched != 0)))
+            }
+            None => Ok(None),
+        }
     }
 }

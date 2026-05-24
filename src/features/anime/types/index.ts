@@ -21,6 +21,7 @@ export type AnimeDetails = {
   backdropUrl: string | null;
   genres: string[];
   score: number | null;
+  totalEpisodes: number | null;
   releaseYear: number | null;
   status: string | null;
   sourceConfidence: AnimeSourceConfidence;
@@ -125,8 +126,11 @@ export type AnimeDownloadPayload = {
   tmdbId: number | null;
   seasonNumber: number | null;
   episodeNumber: number | null;
+  identityKey: string;
+  fileName: string;
   playbackUrl: string;
   referer: string | null;
+  requestHeaders: Array<[string, string]>;
   subtitleCandidates: ResolvedSubtitle[];
 };
 
@@ -223,6 +227,44 @@ export type AnimePrepareDownloadRequest = {
 
 export type AnimePrepareDownloadResponse = {
   payload: AnimeDownloadPayload;
+};
+
+export type AnimeCatalogItem = {
+  anilistId: number;
+  malId: number | null;
+  title: string;
+  posterUrl: string | null;
+  year: number | null;
+  episodes: number | null;
+};
+
+export type AnimeLatestRequest = {
+  limit: number | null;
+};
+
+export type AnimeLatestResponse = {
+  items: AnimeCatalogItem[];
+};
+
+export type AnimeSearchRequest = {
+  query: string;
+  limit: number | null;
+};
+
+export type AnimeSearchResponse = {
+  items: AnimeCatalogItem[];
+};
+
+export type AnimeResumeProgressRequest = {
+  identity: AnimeIdentity;
+  seasonNumber: number | null;
+  episodeNumber: number | null;
+};
+
+export type AnimeResumeProgressResponse = {
+  progressSeconds: number;
+  durationSeconds: number | null;
+  watchedCompleted: boolean;
 };
 
 export const ANIME_EVENTS = {

@@ -4,6 +4,12 @@ import type {
   AnimeGetDetailsResponse,
   AnimeGetEpisodeListRequest,
   AnimeGetEpisodeListResponse,
+  AnimeLatestRequest,
+  AnimeLatestResponse,
+  AnimeResumeProgressRequest,
+  AnimeResumeProgressResponse,
+  AnimeSearchRequest,
+  AnimeSearchResponse,
   AnimeGetSkipTimingsRequest,
   AnimeGetSkipTimingsResponse,
   AnimePlaybackRequest,
@@ -16,6 +22,18 @@ import type {
 
 export function animeGetDetails(request: AnimeGetDetailsRequest) {
   return invoke<AnimeGetDetailsResponse>("anime_get_details", { request });
+}
+
+export function animeGetLatest(request: AnimeLatestRequest) {
+  return invoke<AnimeLatestResponse>("anime_get_latest", { request });
+}
+
+export function animeSearch(request: AnimeSearchRequest) {
+  return invoke<AnimeSearchResponse>("anime_search", { request });
+}
+
+export function animeGetResumeProgress(request: AnimeResumeProgressRequest) {
+  return invoke<AnimeResumeProgressResponse | null>("anime_get_resume_progress", { request });
 }
 
 export function animeGetEpisodeList(request: AnimeGetEpisodeListRequest) {

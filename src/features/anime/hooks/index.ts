@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  animeGetLatest,
+  animeGetResumeProgress,
+  animeSearch,
   animeGetDetails,
   animeGetEpisodeList,
   animeGetSkipTimings,
@@ -9,6 +12,7 @@ import {
 import type {
   AnimeDetails,
   AnimeEpisode,
+  AnimeCatalogItem,
   AnimeGetDetailsRequest,
   AnimeGetEpisodeListRequest,
   AnimeGetSkipTimingsRequest,
@@ -17,6 +21,66 @@ import type {
   AnimeSkipTimings,
   AnimeTranslationMode,
 } from "../types";
+
+function extractInvokeError(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
+  if (typeof err === "object" && err !== null) {
+    const candidate = err as { message?: unknown; category?: unknown; context?: unknown };
+    if (typeof candidate.message === "string") {
+      const suffix = typeof candidate.context === "string" && candidate.context
+        ? ` (${candidate.context})`
+        : "";
+      return `${candidate.message}${suffix}`;
+    }
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return fallback;
+    }
+  }
+  return fallback;
+}
+
+export function useAnimeCatalog() {
+  const [items, setItems] = useState<AnimeCatalogItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    animeGetLatest({ limit: 20 })
+      .then((result) => {
+        if (!cancelled) setItems(result.items);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load latest anime");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const search = async (query: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await animeSearch({ query, limit: 20 });
+      setItems(result.items);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Search failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { items, loading, error, search };
+}
 
 export function useAnimeDetails(request: AnimeGetDetailsRequest) {
   const [details, setDetails] = useState<AnimeDetails | null>(null);
@@ -86,14 +150,25 @@ export function useAnimePlaybackSession(baseRequest: AnimePlaybackRequest | null
   const [source, setSource] = useState<AnimePlaybackSource | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const inFlightKey = useRef<string | null>(null);
+  const requestVersion = useRef(0);
 
   const request = useMemo(() => {
     if (!baseRequest) return null;
     return { ...baseRequest, translationMode };
   }, [baseRequest, translationMode]);
 
-  const resolve = async () => {
+  const resolve = useCallback(async () => {
     if (!request) return;
+    const key = JSON.stringify({
+      id: request.animeId,
+      season: request.seasonNumber,
+      episode: request.episodeNumber,
+      mode: translationMode,
+    });
+    if (inFlightKey.current === key) return;
+    inFlightKey.current = key;
+    const version = ++requestVersion.current;
     setLoading(true);
     setError(null);
     try {
@@ -101,14 +176,40 @@ export function useAnimePlaybackSession(baseRequest: AnimePlaybackRequest | null
         identity: request.animeId,
         translationMode,
       });
-      const result = await animeResolvePlayback(request);
-      setSource(result.source);
+      const resume = await animeGetResumeProgress({
+        identity: request.animeId,
+        seasonNumber: request.seasonNumber,
+        episodeNumber: request.episodeNumber,
+      });
+      const requestWithResume = {
+        ...request,
+        resumeSeconds: resume?.progressSeconds ?? request.resumeSeconds,
+      };
+      const result = await animeResolvePlayback(requestWithResume);
+      if (requestVersion.current === version) {
+        setSource(result.source);
+      }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Playback resolution failed");
+      if (requestVersion.current === version) {
+        setError(extractInvokeError(err, "Playback resolution failed"));
+      }
     } finally {
-      setLoading(false);
+      inFlightKey.current = null;
+      if (requestVersion.current === version) {
+        setLoading(false);
+      }
     }
-  };
+  }, [request, translationMode]);
+
+  useEffect(() => {
+    if (!request) return;
+    const timer = window.setTimeout(() => {
+      void resolve();
+    }, 200);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [request, resolve]);
 
   return { translationMode, setTranslationMode, source, error, loading, resolve };
 }

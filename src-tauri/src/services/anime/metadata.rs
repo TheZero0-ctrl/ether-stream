@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use serde::Deserialize;
 
 use super::models::{
     AnimeDetails, AnimeIdentity, AnimeMediaKind, AnimeSourceConfidence,
@@ -27,6 +28,7 @@ pub struct AnilistCandidate {
     pub native_title: Option<String>,
     pub aliases: Vec<String>,
     pub score: Option<f32>,
+    pub total_episodes: Option<i32>,
 }
 
 #[derive(Debug, Clone)]
@@ -128,10 +130,101 @@ fn build_anime_details(tmdb: TmdbMetadataInput, candidate: AnilistCandidate) -> 
         backdrop_url: tmdb.backdrop_url,
         genres: tmdb.genres,
         score: candidate.score,
+        total_episodes: candidate.total_episodes,
         release_year: tmdb.release_year,
         status: tmdb.status,
         source_confidence: AnimeSourceConfidence::High,
     }
+}
+
+#[derive(Deserialize)]
+struct AniListGraphResponse {
+    data: Option<AniListGraphData>,
+}
+
+#[derive(Deserialize)]
+struct AniListGraphData {
+    #[serde(rename = "Media")]
+    media: Option<AniListMedia>,
+}
+
+#[derive(Deserialize)]
+struct AniListMedia {
+    id: i64,
+    #[serde(rename = "idMal")]
+    id_mal: Option<i64>,
+    title: AniListTitle,
+    #[serde(rename = "averageScore")]
+    average_score: Option<f32>,
+    episodes: Option<i32>,
+}
+
+#[derive(Deserialize)]
+struct AniListTitle {
+    romaji: Option<String>,
+    english: Option<String>,
+    native: Option<String>,
+}
+
+pub async fn lookup_anilist_candidate(title: &str) -> Result<Option<AnilistCandidate>, String> {
+    let query = r#"
+      query ($search: String, $type: MediaType) {
+        Media(search: $search, type: $type, sort: SEARCH_MATCH) {
+          id
+          idMal
+          title { romaji english native }
+          averageScore
+          episodes
+        }
+      }
+    "#;
+
+    let payload = serde_json::json!({
+        "query": query,
+        "variables": { "search": title, "type": "ANIME" }
+    });
+
+    let response = reqwest::Client::new()
+        .post("https://graphql.anilist.co")
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|err| format!("anilist request failed: {err}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!("anilist status {}", response.status()));
+    }
+
+    let data: AniListGraphResponse = response
+        .json()
+        .await
+        .map_err(|err| format!("anilist parse failed: {err}"))?;
+
+    let media = match data.data.and_then(|d| d.media) {
+        Some(media) => media,
+        None => return Ok(None),
+    };
+
+    let canonical = media
+        .title
+        .english
+        .clone()
+        .or(media.title.romaji.clone())
+        .or(media.title.native.clone())
+        .unwrap_or_else(|| title.to_string());
+
+    Ok(Some(AnilistCandidate {
+        anilist_id: media.id,
+        mal_id: media.id_mal,
+        canonical_title: canonical,
+        romaji_title: media.title.romaji,
+        english_title: media.title.english,
+        native_title: media.title.native,
+        aliases: vec![title.to_string()],
+        score: media.average_score,
+        total_episodes: media.episodes,
+    }))
 }
 
 fn normalized_aliases(tmdb_title: &str, candidate: &AnilistCandidate) -> Vec<String> {
@@ -187,6 +280,7 @@ mod tests {
             native_title: Some("進撃の巨人".to_string()),
             aliases: vec!["AoT".to_string(), "Attack on Titan".to_string()],
             score: Some(86.5),
+            total_episodes: Some(25),
         }
     }
 
