@@ -26,11 +26,13 @@ function PlaybackSurface({
   identity,
   seasonNumber,
   episodeNumber,
+  resumeSeconds,
 }: {
   source: { url: string; playbackKind: string };
   identity: AnimeIdentity;
   seasonNumber: number | null;
   episodeNumber: number | null;
+  resumeSeconds: number;
 }) {
   const isHls = source.playbackKind === "hls" || source.url.includes(".m3u8");
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -94,6 +96,25 @@ function PlaybackSurface({
       if (hlsInstance) hlsInstance.destroy();
     };
   }, [isHls, source.url, hlsFailed]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const applyResumePosition = () => {
+      if (!Number.isFinite(resumeSeconds) || resumeSeconds <= 0) return;
+      if (video.currentTime <= 0.5) {
+        video.currentTime = resumeSeconds;
+      }
+    };
+
+    video.addEventListener("loadedmetadata", applyResumePosition);
+    applyResumePosition();
+
+    return () => {
+      video.removeEventListener("loadedmetadata", applyResumePosition);
+    };
+  }, [source.url, resumeSeconds]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -190,6 +211,8 @@ function App() {
   const [page, setPage] = useState<"home" | "watch">("home");
   const [searchOpen, setSearchOpen] = useState(false);
   const [selectedEpisode, setSelectedEpisode] = useState<number | null>(1);
+  const [selectedSeason, setSelectedSeason] = useState<number | null>(1);
+  const [initialResumeSeconds, setInitialResumeSeconds] = useState(0);
   const [resumeReady, setResumeReady] = useState(false);
   const [query, setQuery] = useState("Attack on Titan");
   const [submittedQuery, setSubmittedQuery] = useState("Attack on Titan");
@@ -233,12 +256,17 @@ function App() {
       .then((resume) => {
         if (cancelled) return;
         const targetEpisode = resume?.episodeNumber ?? 1;
+        const targetSeason = resume?.seasonNumber ?? 1;
+        setSelectedSeason(targetSeason);
         setSelectedEpisode(targetEpisode);
+        setInitialResumeSeconds(resume?.progressSeconds ?? 0);
         setResumeReady(true);
       })
       .catch(() => {
         if (!cancelled) {
+          setSelectedSeason(1);
           setSelectedEpisode(1);
+          setInitialResumeSeconds(0);
           setResumeReady(true);
         }
       });
@@ -266,11 +294,11 @@ function App() {
       animeId: details.identity,
       translationMode: "sub" as const,
       movie: false,
-      seasonNumber: 1,
+      seasonNumber: selectedSeason,
       episodeNumber: selectedEpisode,
-      resumeSeconds: 0,
+      resumeSeconds: initialResumeSeconds,
     };
-  }, [details, selectedEpisode, resumeReady]);
+  }, [details, selectedEpisode, selectedSeason, resumeReady, initialResumeSeconds]);
 
   const { translationMode, setTranslationMode, source, error: playbackError, loading } =
     useAnimePlaybackSession(playbackRequest);
@@ -403,13 +431,14 @@ function App() {
         <article className="anime-card anime-card-wide watch-layout">
           <div className="watch-main">
             {source?.url && details ? (
-              <PlaybackSurface
-                source={source}
-                identity={details.identity}
-                seasonNumber={1}
-                episodeNumber={selectedEpisode}
-              />
-            ) : (
+                <PlaybackSurface
+                  source={source}
+                  identity={details.identity}
+                  seasonNumber={selectedSeason}
+                  episodeNumber={selectedEpisode}
+                  resumeSeconds={initialResumeSeconds}
+                />
+              ) : (
               <div className="player-placeholder">Resolve source to start playback</div>
             )}
           </div>
@@ -436,6 +465,8 @@ function App() {
             selectedEpisodeNumber={selectedEpisode}
             onSelect={(episode) => {
               setSelectedEpisode(episode.canonicalEpisodeNumber);
+              setSelectedSeason(episode.seasonNumber);
+              setInitialResumeSeconds(0);
               if (details) {
                 void animeSetLastEpisode({
                   identity: details.identity,

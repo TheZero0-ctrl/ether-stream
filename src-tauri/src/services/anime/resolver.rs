@@ -1057,4 +1057,32 @@ mod tests {
 
         assert_eq!(result.source.url, "https://stream/sub.m3u8");
     }
+
+    #[test]
+    fn normalized_candidates_key_trims_sorts_and_dedupes() {
+        let key = normalized_candidates_key(&[
+            " Attack on Titan ".to_string(),
+            "attack on titan".to_string(),
+            "Shingeki no Kyojin".to_string(),
+            "".to_string(),
+        ]);
+
+        assert_eq!(key, "attack on titan|shingeki no kyojin");
+    }
+
+    #[test]
+    fn infer_playback_kind_distinguishes_hls_direct_and_webview() {
+        assert!(matches!(
+            infer_playback_kind("https://cdn.example/video/master.m3u8"),
+            AnimePlaybackKind::Hls
+        ));
+        assert!(matches!(
+            infer_playback_kind("https://cdn.example/video/file.mp4"),
+            AnimePlaybackKind::DirectVideo
+        ));
+        assert!(matches!(
+            infer_playback_kind("https://embed.example/watch/123"),
+            AnimePlaybackKind::WebviewRemote
+        ));
+    }
 }

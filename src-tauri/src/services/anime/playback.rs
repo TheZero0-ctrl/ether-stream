@@ -71,7 +71,7 @@ impl AnimePlaybackService {
         session: &AnimePlaybackSession,
         update: ProgressUpdate,
     ) -> AnimePlaybackSession {
-        let watched_completed = is_watched_completed(update.progress_seconds, update.duration_seconds);
+        let watched_completed = watched_completed(update.progress_seconds, update.duration_seconds);
 
         AnimePlaybackSession {
             duration_seconds: update.duration_seconds,
@@ -80,6 +80,35 @@ impl AnimePlaybackService {
             ..session.clone()
         }
     }
+}
+
+pub fn watched_completed(progress_seconds: f64, duration_seconds: Option<f64>) -> bool {
+    if let Some(duration) = duration_seconds {
+        if duration <= 0.0 {
+            return false;
+        }
+        let ratio = progress_seconds / duration;
+        return ratio >= 0.9;
+    }
+    false
+}
+
+pub fn build_identity_key(identity: &AnimeIdentity) -> String {
+    format!(
+        "tmdb:{:?}|anilist:{:?}|mal:{:?}",
+        identity.tmdb_id, identity.anilist_id, identity.mal_id
+    )
+}
+
+pub fn build_episode_progress_key(
+    identity: &AnimeIdentity,
+    season_number: Option<i32>,
+    episode_number: Option<i32>,
+) -> String {
+    format!(
+        "tmdb:{:?}|anilist:{:?}|mal:{:?}|season:{:?}|episode:{:?}",
+        identity.tmdb_id, identity.anilist_id, identity.mal_id, season_number, episode_number
+    )
 }
 
 fn select_runtime_mode(kind: &AnimePlaybackKind) -> PlaybackRuntimeMode {
@@ -99,17 +128,6 @@ fn build_session_id(tmdb_id: Option<i64>, season_number: Option<i32>, episode_nu
             .map(|value| value.to_string())
             .unwrap_or_else(|| "na".to_string())
     )
-}
-
-fn is_watched_completed(progress_seconds: f64, duration_seconds: Option<f64>) -> bool {
-    if let Some(duration) = duration_seconds {
-        if duration <= 0.0 {
-            return false;
-        }
-        let ratio = progress_seconds / duration;
-        return ratio >= 0.9;
-    }
-    false
 }
 
 #[cfg(test)]
@@ -209,5 +227,12 @@ mod tests {
 
         assert!(matches!(remote.runtime_mode, PlaybackRuntimeMode::RemoteWebview));
         assert!(matches!(local.runtime_mode, PlaybackRuntimeMode::LocalProxy));
+    }
+
+    #[test]
+    fn builds_stable_episode_progress_key() {
+        let key = build_episode_progress_key(&identity(), Some(1), Some(7));
+        assert!(key.contains("season:Some(1)"));
+        assert!(key.contains("episode:Some(7)"));
     }
 }

@@ -65,3 +65,23 @@ export function animeUpdateProgress(request: AnimeUpdateProgressRequest) {
 export function animeSetLastEpisode(request: AnimeSetLastEpisodeRequest) {
   return invoke<void>("anime_set_last_episode", { request });
 }
+
+export async function resolvePlaybackSession(request: AnimePlaybackRequest) {
+  await animeSetTranslationMode({
+    identity: request.animeId,
+    translationMode: request.translationMode,
+  });
+
+  const resume = await animeGetResumeProgress({
+    identity: request.animeId,
+    seasonNumber: request.seasonNumber,
+    episodeNumber: request.episodeNumber,
+  });
+
+  const requestWithResume = {
+    ...request,
+    resumeSeconds: resume?.progressSeconds ?? request.resumeSeconds,
+  };
+
+  return animeResolvePlayback(requestWithResume);
+}

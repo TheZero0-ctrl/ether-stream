@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   animeGetLatest,
-  animeGetResumeProgress,
   animeSearch,
   animeGetDetails,
   animeGetEpisodeList,
   animeGetSkipTimings,
-  animeResolvePlayback,
-  animeSetTranslationMode,
+  resolvePlaybackSession,
 } from "../api";
 import type {
   AnimeDetails,
@@ -172,20 +170,7 @@ export function useAnimePlaybackSession(baseRequest: AnimePlaybackRequest | null
     setLoading(true);
     setError(null);
     try {
-      await animeSetTranslationMode({
-        identity: request.animeId,
-        translationMode,
-      });
-      const resume = await animeGetResumeProgress({
-        identity: request.animeId,
-        seasonNumber: request.seasonNumber,
-        episodeNumber: request.episodeNumber,
-      });
-      const requestWithResume = {
-        ...request,
-        resumeSeconds: resume?.progressSeconds ?? request.resumeSeconds,
-      };
-      const result = await animeResolvePlayback(requestWithResume);
+      const result = await resolvePlaybackSession(request);
       if (requestVersion.current === version) {
         setSource(result.source);
       }

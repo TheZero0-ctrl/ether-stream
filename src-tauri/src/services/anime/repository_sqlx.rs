@@ -270,7 +270,7 @@ impl AnimeSqlxProgressRepository {
             "SELECT canonical_episode_key, progress_seconds, duration_seconds, watched_completed
              FROM anime_progress
              WHERE identity_key = ?
-             ORDER BY updated_at DESC
+             ORDER BY updated_at DESC, id DESC
              LIMIT 1",
         )
         .bind(identity_key)
@@ -332,5 +332,133 @@ impl AnimeSqlxProgressRepository {
             }
             None => Ok(None),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn setup_progress_repo() -> AnimeSqlxProgressRepository {
+        let pool = SqlitePool::connect("sqlite::memory:")
+            .await
+            .expect("in-memory sqlite should connect");
+
+        sqlx::query(
+            "CREATE TABLE anime_progress (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                canonical_episode_key TEXT NOT NULL UNIQUE,
+                identity_key TEXT NOT NULL,
+                progress_seconds REAL NOT NULL DEFAULT 0,
+                duration_seconds REAL,
+                watched_completed INTEGER NOT NULL DEFAULT 0,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )",
+        )
+        .execute(&pool)
+        .await
+        .expect("anime_progress table should be created");
+
+        sqlx::query(
+            "CREATE TABLE anime_resume_state (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                identity_key TEXT NOT NULL UNIQUE,
+                season_number INTEGER,
+                episode_number INTEGER,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )",
+        )
+        .execute(&pool)
+        .await
+        .expect("anime_resume_state table should be created");
+
+        AnimeSqlxProgressRepository::new(pool)
+    }
+
+    #[test]
+    fn upsert_and_get_progress_round_trip() {
+        tauri::async_runtime::block_on(async {
+            let repo = setup_progress_repo().await;
+
+            repo.upsert_progress("ep-key-1", "id-key-1", 123.0, Some(1440.0), false)
+                .await
+                .expect("progress should insert");
+
+            let row = repo
+                .get_progress("ep-key-1")
+                .await
+                .expect("progress read should succeed")
+                .expect("progress row should exist");
+
+            assert_eq!(row.0, 123.0);
+            assert_eq!(row.1, Some(1440.0));
+            assert!(!row.2);
+        });
+    }
+
+    #[test]
+    fn latest_progress_for_identity_returns_most_recent_row() {
+        tauri::async_runtime::block_on(async {
+            let repo = setup_progress_repo().await;
+
+            repo.upsert_progress("ep-key-1", "id-key-1", 10.0, Some(100.0), false)
+                .await
+                .expect("first row should insert");
+            repo.upsert_progress("ep-key-2", "id-key-1", 88.0, Some(100.0), true)
+                .await
+                .expect("second row should insert");
+
+            let latest = repo
+                .get_latest_progress_for_identity("id-key-1")
+                .await
+                .expect("latest progress read should succeed")
+                .expect("latest row should exist");
+
+            assert_eq!(latest.0, "ep-key-2");
+            assert_eq!(latest.1, 88.0);
+            assert!(latest.3);
+        });
+    }
+
+    #[test]
+    fn set_and_get_last_episode_round_trip() {
+        tauri::async_runtime::block_on(async {
+            let repo = setup_progress_repo().await;
+
+            repo.set_last_episode("id-key-1", Some(1), Some(7))
+                .await
+                .expect("last episode should save");
+
+            let row = repo
+                .get_last_episode("id-key-1")
+                .await
+                .expect("last episode read should succeed")
+                .expect("last episode row should exist");
+
+            assert_eq!(row.0, Some(1));
+            assert_eq!(row.1, Some(7));
+        });
+    }
+
+    #[test]
+    fn set_last_episode_upserts_existing_identity() {
+        tauri::async_runtime::block_on(async {
+            let repo = setup_progress_repo().await;
+
+            repo.set_last_episode("id-key-1", Some(1), Some(3))
+                .await
+                .expect("initial value should save");
+            repo.set_last_episode("id-key-1", Some(1), Some(9))
+                .await
+                .expect("updated value should save");
+
+            let row = repo
+                .get_last_episode("id-key-1")
+                .await
+                .expect("read should succeed")
+                .expect("row should exist");
+
+            assert_eq!(row.1, Some(9));
+        });
     }
 }
