@@ -8,7 +8,7 @@ mod services;
 use commands::anime::{
     anime_get_details, anime_get_episode_list, anime_get_latest, anime_get_resume_progress,
     anime_get_skip_timings, anime_prepare_download, anime_resolve_playback, anime_search,
-    anime_set_translation_mode,
+    anime_set_last_episode, anime_set_translation_mode, anime_update_progress,
 };
 
 #[derive(Serialize)]
@@ -71,6 +71,8 @@ pub fn run() {
             anime_get_episode_list,
             anime_resolve_playback,
             anime_get_skip_timings,
+            anime_update_progress,
+            anime_set_last_episode,
             anime_set_translation_mode,
             anime_prepare_download
         ])

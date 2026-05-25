@@ -262,9 +262,25 @@ export type AnimeResumeProgressRequest = {
 };
 
 export type AnimeResumeProgressResponse = {
+  seasonNumber: number | null;
+  episodeNumber: number | null;
   progressSeconds: number;
   durationSeconds: number | null;
   watchedCompleted: boolean;
+};
+
+export type AnimeUpdateProgressRequest = {
+  identity: AnimeIdentity;
+  seasonNumber: number | null;
+  episodeNumber: number | null;
+  progressSeconds: number;
+  durationSeconds: number | null;
+};
+
+export type AnimeSetLastEpisodeRequest = {
+  identity: AnimeIdentity;
+  seasonNumber: number | null;
+  episodeNumber: number | null;
 };
 
 export const ANIME_EVENTS = {

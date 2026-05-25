@@ -261,4 +261,76 @@ impl AnimeSqlxProgressRepository {
             None => Ok(None),
         }
     }
+
+    pub async fn get_latest_progress_for_identity(
+        &self,
+        identity_key: &str,
+    ) -> Result<Option<(String, f64, Option<f64>, bool)>, sqlx::Error> {
+        let row = sqlx::query(
+            "SELECT canonical_episode_key, progress_seconds, duration_seconds, watched_completed
+             FROM anime_progress
+             WHERE identity_key = ?
+             ORDER BY updated_at DESC
+             LIMIT 1",
+        )
+        .bind(identity_key)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        match row {
+            Some(row) => {
+                let canonical_episode_key: String = row.try_get("canonical_episode_key")?;
+                let progress: f64 = row.try_get("progress_seconds")?;
+                let duration: Option<f64> = row.try_get("duration_seconds")?;
+                let watched: i64 = row.try_get("watched_completed")?;
+                Ok(Some((canonical_episode_key, progress, duration, watched != 0)))
+            }
+            None => Ok(None),
+        }
+    }
+
+    pub async fn set_last_episode(
+        &self,
+        identity_key: &str,
+        season_number: Option<i32>,
+        episode_number: Option<i32>,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "INSERT INTO anime_resume_state (identity_key, season_number, episode_number)
+             VALUES (?, ?, ?)
+             ON CONFLICT(identity_key) DO UPDATE SET
+                season_number = excluded.season_number,
+                episode_number = excluded.episode_number,
+                updated_at = CURRENT_TIMESTAMP",
+        )
+        .bind(identity_key)
+        .bind(season_number)
+        .bind(episode_number)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn get_last_episode(
+        &self,
+        identity_key: &str,
+    ) -> Result<Option<(Option<i32>, Option<i32>)>, sqlx::Error> {
+        let row = sqlx::query(
+            "SELECT season_number, episode_number
+             FROM anime_resume_state
+             WHERE identity_key = ?",
+        )
+        .bind(identity_key)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        match row {
+            Some(row) => {
+                let season: Option<i32> = row.try_get("season_number")?;
+                let episode: Option<i32> = row.try_get("episode_number")?;
+                Ok(Some((season, episode)))
+            }
+            None => Ok(None),
+        }
+    }
 }

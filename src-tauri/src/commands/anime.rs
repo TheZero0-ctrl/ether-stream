@@ -163,9 +163,29 @@ pub struct AnimeResumeProgressRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AnimeResumeProgressResponse {
+    pub season_number: Option<i32>,
+    pub episode_number: Option<i32>,
     pub progress_seconds: f64,
     pub duration_seconds: Option<f64>,
     pub watched_completed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnimeUpdateProgressRequest {
+    pub identity: AnimeIdentity,
+    pub season_number: Option<i32>,
+    pub episode_number: Option<i32>,
+    pub progress_seconds: f64,
+    pub duration_seconds: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnimeSetLastEpisodeRequest {
+    pub identity: AnimeIdentity,
+    pub season_number: Option<i32>,
+    pub episode_number: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -261,22 +281,171 @@ pub async fn anime_get_resume_progress(
     request: AnimeResumeProgressRequest,
     db: State<'_, AppDatabase>,
 ) -> Result<Option<AnimeResumeProgressResponse>, AnimeCommandError> {
-    let key = build_episode_progress_key(&request.identity, request.season_number, request.episode_number);
+    let identity_key = build_identity_key(&request.identity);
     let repo = AnimeSqlxProgressRepository::new(db.0.clone());
-    let row = repo
-        .get_progress(&key)
+
+    if request.season_number.is_none() && request.episode_number.is_none() {
+        let last = repo
+            .get_last_episode(&identity_key)
+            .await
+            .map_err(|err| AnimeCommandError {
+                category: AnimeErrorCategory::PlayableSourceMissing,
+                message: "failed to read last episode".to_string(),
+                context: Some(err.to_string()),
+            })?;
+
+        if let Some((season_number, episode_number)) = last {
+            let key = build_episode_progress_key(&request.identity, season_number, episode_number);
+            let row = repo
+                .get_progress(&key)
+                .await
+                .map_err(|err| AnimeCommandError {
+                    category: AnimeErrorCategory::PlayableSourceMissing,
+                    message: "failed to read resume progress".to_string(),
+                    context: Some(err.to_string()),
+                })?;
+
+            return Ok(Some(match row {
+                Some((progress, duration, watched)) => AnimeResumeProgressResponse {
+                    season_number,
+                    episode_number,
+                    progress_seconds: progress,
+                    duration_seconds: duration,
+                    watched_completed: watched,
+                },
+                None => AnimeResumeProgressResponse {
+                    season_number,
+                    episode_number,
+                    progress_seconds: 0.0,
+                    duration_seconds: None,
+                    watched_completed: false,
+                },
+            }));
+        }
+    }
+
+    if request.season_number.is_some() || request.episode_number.is_some() {
+        let key = build_episode_progress_key(&request.identity, request.season_number, request.episode_number);
+        let row = repo
+            .get_progress(&key)
+            .await
+            .map_err(|err| AnimeCommandError {
+                category: AnimeErrorCategory::PlayableSourceMissing,
+                message: "failed to read resume progress".to_string(),
+                context: Some(err.to_string()),
+            })?;
+
+        return Ok(row.map(|(progress, duration, watched)| AnimeResumeProgressResponse {
+            season_number: request.season_number,
+            episode_number: request.episode_number,
+            progress_seconds: progress,
+            duration_seconds: duration,
+            watched_completed: watched,
+        }));
+    }
+
+    let latest = repo
+        .get_latest_progress_for_identity(&identity_key)
         .await
         .map_err(|err| AnimeCommandError {
             category: AnimeErrorCategory::PlayableSourceMissing,
-            message: "failed to read resume progress".to_string(),
+            message: "failed to read latest resume progress".to_string(),
             context: Some(err.to_string()),
         })?;
 
-    Ok(row.map(|(progress, duration, watched)| AnimeResumeProgressResponse {
-        progress_seconds: progress,
-        duration_seconds: duration,
-        watched_completed: watched,
+    Ok(latest.map(|(episode_key, progress, duration, watched)| {
+        let (season_number, episode_number) = parse_episode_progress_key(&episode_key);
+        AnimeResumeProgressResponse {
+            season_number,
+            episode_number,
+            progress_seconds: progress,
+            duration_seconds: duration,
+            watched_completed: watched,
+        }
     }))
+}
+
+fn parse_episode_progress_key(key: &str) -> (Option<i32>, Option<i32>) {
+    let mut season = None;
+    let mut episode = None;
+
+    for part in key.split('|') {
+        if let Some(raw) = part.strip_prefix("season:") {
+            season = parse_key_number(raw);
+        } else if let Some(raw) = part.strip_prefix("episode:") {
+            episode = parse_key_number(raw);
+        }
+    }
+
+    (season, episode)
+}
+
+fn parse_key_number(raw: &str) -> Option<i32> {
+    let trimmed = raw.trim();
+    if trimmed == "None" {
+        return None;
+    }
+
+    if let Some(inner) = trimmed.strip_prefix("Some(").and_then(|v| v.strip_suffix(')')) {
+        return inner.trim().parse::<i32>().ok();
+    }
+
+    trimmed.parse::<i32>().ok()
+}
+
+#[tauri::command]
+pub async fn anime_update_progress(
+    request: AnimeUpdateProgressRequest,
+    db: State<'_, AppDatabase>,
+) -> Result<(), AnimeCommandError> {
+    if request.progress_seconds <= 0.0 {
+        return Ok(());
+    }
+
+    let episode_key = build_episode_progress_key(
+        &request.identity,
+        request.season_number,
+        request.episode_number,
+    );
+    let identity_key = build_identity_key(&request.identity);
+    let repository = AnimeSqlxProgressRepository::new(db.0.clone());
+
+    let watched_completed = request
+        .duration_seconds
+        .map(|duration| duration > 0.0 && (request.progress_seconds / duration) >= 0.9)
+        .unwrap_or(false);
+
+    repository
+        .upsert_progress(
+            &episode_key,
+            &identity_key,
+            request.progress_seconds,
+            request.duration_seconds,
+            watched_completed,
+        )
+        .await
+        .map_err(|err| AnimeCommandError {
+            category: AnimeErrorCategory::PlayableSourceMissing,
+            message: "failed to persist anime playback progress".to_string(),
+            context: Some(err.to_string()),
+        })
+}
+
+#[tauri::command]
+pub async fn anime_set_last_episode(
+    request: AnimeSetLastEpisodeRequest,
+    db: State<'_, AppDatabase>,
+) -> Result<(), AnimeCommandError> {
+    let identity_key = build_identity_key(&request.identity);
+    let repository = AnimeSqlxProgressRepository::new(db.0.clone());
+    repository
+        .set_last_episode(&identity_key, request.season_number, request.episode_number)
+        .await
+        .map_err(|err| AnimeCommandError {
+            category: AnimeErrorCategory::PlayableSourceMissing,
+            message: "failed to persist last selected episode".to_string(),
+            context: Some(err.to_string()),
+        })
 }
 
 #[tauri::command]
@@ -467,6 +636,17 @@ pub async fn anime_resolve_playback(
     app: AppHandle,
     db: State<'_, AppDatabase>,
 ) -> Result<AnimeResolvePlaybackResponse, AnimeCommandError> {
+    let progress_repository = AnimeSqlxProgressRepository::new(db.0.clone());
+    let identity_key = build_identity_key(&request.anime_id);
+    progress_repository
+        .set_last_episode(&identity_key, request.season_number, request.episode_number)
+        .await
+        .map_err(|err| AnimeCommandError {
+            category: AnimeErrorCategory::PlayableSourceMissing,
+            message: "failed to persist last selected episode".to_string(),
+            context: Some(err.to_string()),
+        })?;
+
     let resolver = AnimeResolverService::new();
     let result = resolver
         .resolve_live(&ResolverContext {
@@ -515,7 +695,9 @@ pub async fn anime_resolve_playback(
         },
     );
 
-    persist_session_progress(&db, &session).await?;
+    if session.resume_seconds > 0.0 {
+        persist_session_progress(&db, &session).await?;
+    }
 
     let _ = app.emit(
         EVENT_ANIME_PLAYBACK_READY,

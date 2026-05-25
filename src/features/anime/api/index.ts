@@ -18,6 +18,8 @@ import type {
   AnimeResolvePlaybackResponse,
   AnimeSetTranslationModeRequest,
   AnimeSetTranslationModeResponse,
+  AnimeSetLastEpisodeRequest,
+  AnimeUpdateProgressRequest,
 } from "../types";
 
 export function animeGetDetails(request: AnimeGetDetailsRequest) {
@@ -54,4 +56,12 @@ export function animeSetTranslationMode(request: AnimeSetTranslationModeRequest)
 
 export function animePrepareDownload(request: AnimePrepareDownloadRequest) {
   return invoke<AnimePrepareDownloadResponse>("anime_prepare_download", { request });
+}
+
+export function animeUpdateProgress(request: AnimeUpdateProgressRequest) {
+  return invoke<void>("anime_update_progress", { request });
+}
+
+export function animeSetLastEpisode(request: AnimeSetLastEpisodeRequest) {
+  return invoke<void>("anime_set_last_episode", { request });
 }

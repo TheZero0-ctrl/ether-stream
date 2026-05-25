@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS anime_resume_state (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  identity_key TEXT NOT NULL UNIQUE,
+  season_number INTEGER,
+  episode_number INTEGER,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

@@ -13,9 +13,25 @@ import {
   useAnimePlaybackSession,
   useAnimeSkipState,
 } from "./features/anime/hooks";
+import { animeGetResumeProgress, animeSetLastEpisode, animeUpdateProgress } from "./features/anime/api";
+import type { AnimeIdentity } from "./features/anime/types";
 import "./App.css";
 
-function PlaybackSurface({ source }: { source: { url: string; playbackKind: string } }) {
+function buildIdentityKey(identity: { tmdbId: number | null; anilistId: number | null; malId: number | null }) {
+  return `tmdb:${identity.tmdbId ?? "none"}|anilist:${identity.anilistId ?? "none"}|mal:${identity.malId ?? "none"}`;
+}
+
+function PlaybackSurface({
+  source,
+  identity,
+  seasonNumber,
+  episodeNumber,
+}: {
+  source: { url: string; playbackKind: string };
+  identity: AnimeIdentity;
+  seasonNumber: number | null;
+  episodeNumber: number | null;
+}) {
   const isHls = source.playbackKind === "hls" || source.url.includes(".m3u8");
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [hlsFailed, setHlsFailed] = useState(false);
@@ -79,6 +95,49 @@ function PlaybackSurface({ source }: { source: { url: string; playbackKind: stri
     };
   }, [isHls, source.url, hlsFailed]);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    let lastSavedAt = 0;
+    const persist = () => {
+      const now = Date.now();
+      if (now - lastSavedAt < 5000) return;
+      const progressSeconds = video.currentTime;
+      if (!Number.isFinite(progressSeconds) || progressSeconds <= 0) return;
+      lastSavedAt = now;
+      void animeUpdateProgress({
+        identity,
+        seasonNumber,
+        episodeNumber,
+        progressSeconds,
+        durationSeconds: Number.isFinite(video.duration) ? video.duration : null,
+      });
+    };
+
+    const persistFinal = () => {
+      const progressSeconds = video.currentTime;
+      if (!Number.isFinite(progressSeconds) || progressSeconds <= 0) return;
+      void animeUpdateProgress({
+        identity,
+        seasonNumber,
+        episodeNumber,
+        progressSeconds,
+        durationSeconds: Number.isFinite(video.duration) ? video.duration : null,
+      });
+    };
+
+    video.addEventListener("timeupdate", persist);
+    video.addEventListener("pause", persistFinal);
+    video.addEventListener("ended", persistFinal);
+
+    return () => {
+      video.removeEventListener("timeupdate", persist);
+      video.removeEventListener("pause", persistFinal);
+      video.removeEventListener("ended", persistFinal);
+    };
+  }, [identity, seasonNumber, episodeNumber, source.url]);
+
   if (source.playbackKind === "webviewRemote" && !isHls) {
     return (
       <iframe
@@ -131,6 +190,7 @@ function App() {
   const [page, setPage] = useState<"home" | "watch">("home");
   const [searchOpen, setSearchOpen] = useState(false);
   const [selectedEpisode, setSelectedEpisode] = useState<number | null>(1);
+  const [resumeReady, setResumeReady] = useState(false);
   const [query, setQuery] = useState("Attack on Titan");
   const [submittedQuery, setSubmittedQuery] = useState("Attack on Titan");
   const { items, loading: catalogLoading, error: catalogError, search } = useAnimeCatalog();
@@ -156,6 +216,38 @@ function App() {
 
   const { details, loading: detailsLoading, error: detailsError } = useAnimeDetails(detailsRequest);
 
+  const identityKey = useMemo(() => {
+    if (!details) return null;
+    return buildIdentityKey(details.identity);
+  }, [details]);
+
+  useEffect(() => {
+    if (page !== "watch" || !details || !identityKey) return;
+    let cancelled = false;
+    setResumeReady(false);
+    animeGetResumeProgress({
+      identity: details.identity,
+      seasonNumber: null,
+      episodeNumber: null,
+    })
+      .then((resume) => {
+        if (cancelled) return;
+        const targetEpisode = resume?.episodeNumber ?? 1;
+        setSelectedEpisode(targetEpisode);
+        setResumeReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSelectedEpisode(1);
+          setResumeReady(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [page, identityKey, details]);
+
   const episodesRequest = useMemo(() => {
     if (!details) return null;
     return {
@@ -169,7 +261,7 @@ function App() {
   const { episodes, loading: episodesLoading, error: episodesError } = useAnimeEpisodes(episodesRequest);
 
   const playbackRequest = useMemo(() => {
-    if (!details) return null;
+    if (!details || !resumeReady) return null;
     return {
       animeId: details.identity,
       translationMode: "sub" as const,
@@ -178,7 +270,7 @@ function App() {
       episodeNumber: selectedEpisode,
       resumeSeconds: 0,
     };
-  }, [details, selectedEpisode]);
+  }, [details, selectedEpisode, resumeReady]);
 
   const { translationMode, setTranslationMode, source, error: playbackError, loading } =
     useAnimePlaybackSession(playbackRequest);
@@ -246,7 +338,6 @@ function App() {
               setSubmittedQuery(q);
               void search(q);
               setPage("watch");
-              setSelectedEpisode(1);
               setSearchOpen(false);
             }}
           >
@@ -296,7 +387,6 @@ function App() {
                     setQuery(item.title);
                     setSubmittedQuery(item.title);
                     setPage("watch");
-                    setSelectedEpisode(1);
                   }}
                 >
                   <div className="catalog-title">{item.title}</div>
@@ -312,7 +402,16 @@ function App() {
       <section className="anime-grid">
         <article className="anime-card anime-card-wide watch-layout">
           <div className="watch-main">
-            {source?.url ? <PlaybackSurface source={source} /> : <div className="player-placeholder">Resolve source to start playback</div>}
+            {source?.url && details ? (
+              <PlaybackSurface
+                source={source}
+                identity={details.identity}
+                seasonNumber={1}
+                episodeNumber={selectedEpisode}
+              />
+            ) : (
+              <div className="player-placeholder">Resolve source to start playback</div>
+            )}
           </div>
 
           <aside className="watch-sidebar">
@@ -335,7 +434,16 @@ function App() {
           <EpisodeSelector
             episodes={episodes}
             selectedEpisodeNumber={selectedEpisode}
-            onSelect={(episode) => setSelectedEpisode(episode.canonicalEpisodeNumber)}
+            onSelect={(episode) => {
+              setSelectedEpisode(episode.canonicalEpisodeNumber);
+              if (details) {
+                void animeSetLastEpisode({
+                  identity: details.identity,
+                  seasonNumber: episode.seasonNumber,
+                  episodeNumber: episode.canonicalEpisodeNumber,
+                });
+              }
+            }}
           />
         </article>
       </section>
