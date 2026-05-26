@@ -40,6 +40,7 @@ pub struct AnimeDetails {
     pub genres: Vec<String>,
     pub score: Option<f32>,
     pub total_episodes: Option<i32>,
+    pub released_episode_count: Option<i32>,
     pub release_year: Option<i32>,
     pub status: Option<String>,
     pub source_confidence: AnimeSourceConfidence,

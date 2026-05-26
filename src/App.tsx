@@ -283,6 +283,7 @@ function App() {
       isMovie: false,
       tmdbEpisodes: [],
       anilistEpisodeCount: details.totalEpisodes ?? 12,
+      releasedEpisodeCount: details.releasedEpisodeCount,
     };
   }, [details]);
 

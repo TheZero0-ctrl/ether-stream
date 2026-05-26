@@ -20,6 +20,7 @@ pub struct MappingInput {
     pub is_movie: bool,
     pub tmdb_episodes: Vec<MappingEpisodeInput>,
     pub anilist_episode_count: Option<i32>,
+    pub released_episode_count: Option<i32>,
     pub provider: Option<AnimeProvider>,
 }
 
@@ -89,7 +90,10 @@ impl AnimeMappingService {
     }
 
     fn map_series(&self, input: MappingInput) -> MappingOutput {
-        if input.tmdb_episodes.is_empty() && input.anilist_episode_count.is_none() {
+        if input.tmdb_episodes.is_empty()
+            && input.anilist_episode_count.is_none()
+            && input.released_episode_count.is_none()
+        {
             return MappingOutput {
                 seasons: vec![AnimeSeason {
                     season_number: 1,
@@ -147,19 +151,22 @@ impl AnimeMappingService {
                     }),
                 });
             }
-        } else if let Some(count) = input.anilist_episode_count {
-            for episode_number in 1..=count {
-                episodes.push(AnimeEpisode {
-                    display_episode_number: episode_number,
-                    canonical_episode_number: episode_number,
-                    season_number: 1,
-                    title: Some(format!("Episode {episode_number}")),
-                    overview: None,
-                    runtime_minutes: None,
-                    air_date: None,
-                    tmdb_reference: None,
-                    provider_reference: None,
-                });
+        } else {
+            let count = effective_episode_count(input.anilist_episode_count, input.released_episode_count);
+            if let Some(count) = count {
+                for episode_number in 1..=count {
+                    episodes.push(AnimeEpisode {
+                        display_episode_number: episode_number,
+                        canonical_episode_number: episode_number,
+                        season_number: 1,
+                        title: Some(format!("Episode {episode_number}")),
+                        overview: None,
+                        runtime_minutes: None,
+                        air_date: None,
+                        tmdb_reference: None,
+                        provider_reference: None,
+                    });
+                }
             }
         }
 
@@ -197,6 +204,15 @@ impl AnimeMappingService {
     }
 }
 
+fn effective_episode_count(anilist_episode_count: Option<i32>, released_episode_count: Option<i32>) -> Option<i32> {
+    match (anilist_episode_count, released_episode_count) {
+        (Some(total), Some(released)) => Some(total.min(released).max(0)),
+        (Some(total), None) => Some(total.max(0)),
+        (None, Some(released)) => Some(released.max(0)),
+        (None, None) => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -223,6 +239,7 @@ mod tests {
                 },
             ],
             anilist_episode_count: Some(2),
+            released_episode_count: Some(2),
             provider: None,
         });
 
@@ -252,11 +269,54 @@ mod tests {
                 },
             ],
             anilist_episode_count: Some(24),
+            released_episode_count: Some(24),
             provider: None,
         });
 
         assert!(output.seasons[0].title.contains("virtualized"));
         assert_eq!(output.diagnostics.notes[0], "split/virtual season behavior applied");
+    }
+
+    #[test]
+    fn caps_anilist_generated_episodes_to_released_count() {
+        let service = AnimeMappingService::new();
+        let output = service.map(MappingInput {
+            is_movie: false,
+            tmdb_episodes: vec![],
+            anilist_episode_count: Some(24),
+            released_episode_count: Some(8),
+            provider: None,
+        });
+
+        assert_eq!(output.seasons[0].episodes.len(), 8);
+    }
+
+    #[test]
+    fn clamps_released_count_above_total() {
+        let service = AnimeMappingService::new();
+        let output = service.map(MappingInput {
+            is_movie: false,
+            tmdb_episodes: vec![],
+            anilist_episode_count: Some(12),
+            released_episode_count: Some(40),
+            provider: None,
+        });
+
+        assert_eq!(output.seasons[0].episodes.len(), 12);
+    }
+
+    #[test]
+    fn supports_zero_released_episodes() {
+        let service = AnimeMappingService::new();
+        let output = service.map(MappingInput {
+            is_movie: false,
+            tmdb_episodes: vec![],
+            anilist_episode_count: Some(12),
+            released_episode_count: Some(0),
+            provider: None,
+        });
+
+        assert_eq!(output.seasons[0].episodes.len(), 0);
     }
 
     #[test]
@@ -266,6 +326,7 @@ mod tests {
             is_movie: false,
             tmdb_episodes: vec![],
             anilist_episode_count: None,
+            released_episode_count: None,
             provider: None,
         });
 

@@ -29,6 +29,7 @@ pub struct AnilistCandidate {
     pub aliases: Vec<String>,
     pub score: Option<f32>,
     pub total_episodes: Option<i32>,
+    pub released_episode_count: Option<i32>,
 }
 
 #[derive(Debug, Clone)]
@@ -131,6 +132,7 @@ fn build_anime_details(tmdb: TmdbMetadataInput, candidate: AnilistCandidate) -> 
         genres: tmdb.genres,
         score: candidate.score,
         total_episodes: candidate.total_episodes,
+        released_episode_count: candidate.released_episode_count,
         release_year: tmdb.release_year,
         status: tmdb.status,
         source_confidence: AnimeSourceConfidence::High,
@@ -157,6 +159,14 @@ struct AniListMedia {
     #[serde(rename = "averageScore")]
     average_score: Option<f32>,
     episodes: Option<i32>,
+    status: Option<String>,
+    #[serde(rename = "nextAiringEpisode")]
+    next_airing_episode: Option<AniListNextAiringEpisode>,
+}
+
+#[derive(Deserialize)]
+struct AniListNextAiringEpisode {
+    episode: Option<i32>,
 }
 
 #[derive(Deserialize)]
@@ -175,6 +185,8 @@ pub async fn lookup_anilist_candidate(title: &str) -> Result<Option<AnilistCandi
           title { romaji english native }
           averageScore
           episodes
+          status
+          nextAiringEpisode { episode }
         }
       }
     "#;
@@ -214,6 +226,15 @@ pub async fn lookup_anilist_candidate(title: &str) -> Result<Option<AnilistCandi
         .or(media.title.native.clone())
         .unwrap_or_else(|| title.to_string());
 
+    let released_episode_count = derive_released_episode_count(
+        media.status.as_deref(),
+        media.episodes,
+        media
+            .next_airing_episode
+            .as_ref()
+            .and_then(|next| next.episode),
+    );
+
     Ok(Some(AnilistCandidate {
         anilist_id: media.id,
         mal_id: media.id_mal,
@@ -224,7 +245,20 @@ pub async fn lookup_anilist_candidate(title: &str) -> Result<Option<AnilistCandi
         aliases: vec![title.to_string()],
         score: media.average_score,
         total_episodes: media.episodes,
+        released_episode_count,
     }))
+}
+
+fn derive_released_episode_count(
+    status: Option<&str>,
+    total_episodes: Option<i32>,
+    next_airing_episode: Option<i32>,
+) -> Option<i32> {
+    if matches!(status, Some("RELEASING")) {
+        return Some(next_airing_episode.unwrap_or(1).saturating_sub(1));
+    }
+
+    total_episodes
 }
 
 fn normalized_aliases(tmdb_title: &str, candidate: &AnilistCandidate) -> Vec<String> {
@@ -281,7 +315,24 @@ mod tests {
             aliases: vec!["AoT".to_string(), "Attack on Titan".to_string()],
             score: Some(86.5),
             total_episodes: Some(25),
+            released_episode_count: Some(25),
         }
+    }
+
+    #[test]
+    fn derives_released_episode_count_for_releasing_shows() {
+        assert_eq!(
+            derive_released_episode_count(Some("RELEASING"), Some(24), Some(9)),
+            Some(8)
+        );
+        assert_eq!(
+            derive_released_episode_count(Some("RELEASING"), Some(24), None),
+            Some(0)
+        );
+        assert_eq!(
+            derive_released_episode_count(Some("FINISHED"), Some(24), Some(25)),
+            Some(24)
+        );
     }
 
     #[test]

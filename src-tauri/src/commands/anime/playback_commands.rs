@@ -31,6 +31,7 @@ pub(super) fn handle_get_episode_list(
         is_movie: request.is_movie,
         tmdb_episodes: request.tmdb_episodes,
         anilist_episode_count: request.anilist_episode_count,
+        released_episode_count: request.released_episode_count,
         provider: None,
     });
 

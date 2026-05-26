@@ -65,6 +65,7 @@ pub(super) async fn handle_anime_get_details(
             aliases: vec![tmdb_input.title.clone()],
             score: None,
             total_episodes: None,
+            released_episode_count: None,
         })
     } else {
         match lookup_anilist_candidate(&tmdb_input.title).await {

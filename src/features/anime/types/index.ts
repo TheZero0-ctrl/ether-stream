@@ -22,6 +22,7 @@ export type AnimeDetails = {
   genres: string[];
   score: number | null;
   totalEpisodes: number | null;
+  releasedEpisodeCount: number | null;
   releaseYear: number | null;
   status: string | null;
   sourceConfidence: AnimeSourceConfidence;
@@ -182,6 +183,7 @@ export type AnimeGetEpisodeListRequest = {
   isMovie: boolean;
   tmdbEpisodes: MappingEpisodeInput[];
   anilistEpisodeCount: number | null;
+  releasedEpisodeCount: number | null;
 };
 
 export type AnimeGetEpisodeListResponse = {

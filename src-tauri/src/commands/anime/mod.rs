@@ -64,6 +64,7 @@ pub struct AnimeGetEpisodeListRequest {
     pub is_movie: bool,
     pub tmdb_episodes: Vec<MappingEpisodeInput>,
     pub anilist_episode_count: Option<i32>,
+    pub released_episode_count: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -422,6 +423,7 @@ mod tests {
                 genres: vec![],
                 score: None,
                 total_episodes: None,
+                released_episode_count: None,
                 release_year: None,
                 status: None,
                 source_confidence: AnimeSourceConfidence::Unknown,
