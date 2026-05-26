@@ -41,23 +41,37 @@ function extractInvokeError(err: unknown, fallback: string): string {
 }
 
 export function useAnimeCatalog() {
-  const [items, setItems] = useState<AnimeCatalogItem[]>([]);
+  const [latestItems, setLatestItems] = useState<AnimeCatalogItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const refreshLatest = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await animeGetLatest({ limit: 20 });
+      setLatestItems(result.items);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load latest anime");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    animeGetLatest({ limit: 20 })
-      .then((result) => {
-        if (!cancelled) setItems(result.items);
-      })
-      .catch((err: unknown) => {
+    void (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await animeGetLatest({ limit: 20 });
+        if (!cancelled) setLatestItems(result.items);
+      } catch (err: unknown) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load latest anime");
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;
@@ -65,19 +79,14 @@ export function useAnimeCatalog() {
   }, []);
 
   const search = async (query: string) => {
-    setLoading(true);
-    setError(null);
     try {
-      const result = await animeSearch({ query, limit: 20 });
-      setItems(result.items);
+      await animeSearch({ query, limit: 20 });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Search failed");
-    } finally {
-      setLoading(false);
     }
   };
 
-  return { items, loading, error, search };
+  return { latestItems, loading, error, search, refreshLatest };
 }
 
 export function useAnimeDetails(request: AnimeGetDetailsRequest) {

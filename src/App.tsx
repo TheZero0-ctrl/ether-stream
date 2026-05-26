@@ -216,7 +216,13 @@ function App() {
   const [resumeReady, setResumeReady] = useState(false);
   const [query, setQuery] = useState("Attack on Titan");
   const [submittedQuery, setSubmittedQuery] = useState("Attack on Titan");
-  const { items, loading: catalogLoading, error: catalogError, search } = useAnimeCatalog();
+  const {
+    latestItems,
+    loading: catalogLoading,
+    error: catalogError,
+    search,
+    refreshLatest,
+  } = useAnimeCatalog();
 
   const detailsRequest = useMemo(
     () => ({
@@ -339,7 +345,14 @@ function App() {
       </div>
 
       <header className="top-grid">
-        <button type="button" className="top-cell brand brand-button" onClick={() => setPage("home")}>
+        <button
+          type="button"
+          className="top-cell brand brand-button"
+          onClick={() => {
+            setPage("home");
+            void refreshLatest();
+          }}
+        >
           ETHER
         </button>
         <button type="button" className="top-cell nav-button" onClick={() => setSearchOpen((value) => !value)}>
@@ -406,7 +419,7 @@ function App() {
             {catalogLoading ? <p className="muted">Loading latest anime...</p> : null}
             {catalogError ? <PlaybackErrorState message={catalogError} /> : null}
             <div className="catalog-grid">
-              {items.map((item) => (
+              {latestItems.map((item) => (
                 <button
                   key={item.anilistId}
                   className="catalog-card"
