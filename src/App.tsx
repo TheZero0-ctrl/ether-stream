@@ -323,7 +323,6 @@ function App() {
             void startWindowDrag();
           }}
         >
-          <div className="titlebar-label">Ether</div>
         </div>
         <div className="titlebar-actions">
           <button
@@ -341,7 +340,7 @@ function App() {
 
       <header className="top-grid">
         <button type="button" className="top-cell brand brand-button" onClick={() => setPage("home")}>
-          ETHER<br />ANIME
+          ETHER
         </button>
         <button type="button" className="top-cell nav-button" onClick={() => setSearchOpen((value) => !value)}>
           <span className="nav-inline-icon" aria-hidden="true">
@@ -350,7 +349,7 @@ function App() {
               <path d="M16 16L21 21" />
             </svg>
           </span>
-          <span>SEARCH</span>
+          <span className="nav-inline-text">SEARCH</span>
         </button>
         <div className="top-cell">COLLECTION</div>
         <div className="top-cell">SESSION</div>
@@ -382,12 +381,12 @@ function App() {
 
       <section className="anime-hero">
         <div className="anime-hero-inner">
-          <div className="anime-kicker">Calm Mode • Anime Session</div>
+          <div className="anime-kicker">Calm • Anime Session</div>
           <h1>{page === "watch" ? (details?.identity.canonicalTitle ?? "Loading title...") : "Find and Watch Anime"}</h1>
           <p>
             {page === "watch"
               ? (details?.overview ?? "Pick an episode and start watching.")
-              : "Browse latest anime releases or search by title, then open episode view and continue where you left off."}
+              : "Browse latest anime releases or search by title."}
           </p>
           {page === "watch" ? (
           <div className="anime-meta-row">

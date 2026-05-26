@@ -123,6 +123,7 @@ button {
   padding: 14px 18px;
   letter-spacing: 0.12em;
   font-size: 13px;
+  line-height: 1.2;
   color: var(--muted);
 }
 
@@ -147,7 +148,8 @@ button {
 
 .nav-button {
   gap: 10px;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: flex-start;
 }
 
 .nav-inline-icon {
@@ -160,6 +162,15 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.nav-inline-text {
+  height: auto;
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: center;
+  line-height: 1.2;
+  padding-top: 1px;
 }
 
 .nav-inline-icon svg {
@@ -185,7 +196,7 @@ button {
 .top-cell.brand {
   font-family: "Fraunces", "Iowan Old Style", serif;
   letter-spacing: 0.03em;
-  font-size: 52px;
+  font-size: 24px;
   line-height: 0.84;
   color: var(--text);
   padding-top: 12px;
@@ -222,7 +233,7 @@ button {
 .anime-hero h1 {
   margin: 14px 0 10px;
   font-family: "Fraunces", "Iowan Old Style", serif;
-  font-size: clamp(44px, 7vw, 86px);
+  font-size: clamp(38px, 5vw, 72px);
   line-height: 0.95;
   font-weight: 500;
   text-transform: uppercase;
