@@ -37,6 +37,26 @@ sudo dpkg -i Ether_*_amd64.deb
 
 Always inspect scripts before piping into shell.
 
+Arch Linux / Hyprland local install (extracts the release `.deb` into `~/.local` and adds a launcher):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TheZero0-ctrl/ether-stream/main/scripts/install_update_linux_arch.sh | bash
+```
+
+Pinned Arch local install:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TheZero0-ctrl/ether-stream/main/scripts/install_update_linux_arch.sh | VERSION=v0.1.0 bash
+```
+
+Override the install prefix (default `~/.local`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TheZero0-ctrl/ether-stream/main/scripts/install_update_linux_arch.sh | PREFIX=$HOME/.local bash
+```
+
+Portable AppImage install/update:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/TheZero0-ctrl/ether-stream/main/scripts/install_update_linux.sh | bash
 ```
@@ -52,6 +72,18 @@ Install a specific version by setting `VERSION` (example `v0.1.0`):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/TheZero0-ctrl/ether-stream/main/scripts/install_update_linux.sh | VERSION=v0.1.0 bash
+```
+
+Debian package install/update (Debian/Ubuntu-based systems only):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TheZero0-ctrl/ether-stream/main/scripts/install_update_linux_deb.sh | bash
+```
+
+Pinned Debian package install:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TheZero0-ctrl/ether-stream/main/scripts/install_update_linux_deb.sh | VERSION=v0.1.0 bash
 ```
 
 ## Disclaimer
