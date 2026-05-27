@@ -9,7 +9,8 @@ mod progress_commands;
 mod resume;
 
 use crate::database::AppDatabase;
-use crate::services::anime::errors::AnimeCommandError;
+use crate::services::anime::classifier::{AnimeClassificationInput, AnimeClassifierService};
+use crate::services::anime::errors::{AnimeCommandError, AnimeErrorCategory};
 use crate::services::anime::mapping::MappingEpisodeInput;
 use crate::services::anime::models::{
     AnimeDetails, AnimeDownloadPayload, AnimeIdentity,
@@ -148,6 +149,9 @@ pub struct AnimeLatestResponse {
 pub struct AnimeSearchRequest {
     pub query: String,
     pub limit: Option<i32>,
+    pub has_animation_genre: Option<bool>,
+    pub original_language: Option<String>,
+    pub origin_countries: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -254,6 +258,30 @@ pub async fn anime_get_latest(
 pub async fn anime_search(
     request: AnimeSearchRequest,
 ) -> Result<AnimeSearchResponse, AnimeCommandError> {
+    if request.has_animation_genre.is_some()
+        || request.original_language.is_some()
+        || request.origin_countries.is_some()
+    {
+        let classifier = AnimeClassifierService::new();
+        let classification = classifier.classify(&AnimeClassificationInput {
+            has_animation_genre: request.has_animation_genre.unwrap_or(false),
+            original_language: request.original_language.clone(),
+            origin_countries: request.origin_countries.clone().unwrap_or_default(),
+        });
+
+        if !classification.is_anime {
+            return Err(AnimeCommandError {
+                category: AnimeErrorCategory::AnimeNotClassified,
+                message: "search request does not meet anime classification threshold".to_string(),
+                context: Some(format!(
+                    "confidence={:.2}; reasons={}",
+                    classification.confidence,
+                    classification.reasons.join(", ")
+                )),
+            });
+        }
+    }
+
     let limit = request.limit.unwrap_or(12).clamp(1, 30);
     let query = r#"
       query ($page:Int, $perPage:Int, $search:String) {

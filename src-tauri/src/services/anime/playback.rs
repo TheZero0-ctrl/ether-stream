@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::models::{AnimeIdentity, AnimePlaybackKind, AnimePlaybackSource, AnimeTranslationMode};
 
@@ -23,6 +24,7 @@ pub struct AnimePlaybackSession {
     pub resume_seconds: f64,
     pub duration_seconds: Option<f64>,
     pub watched_completed: bool,
+    pub ended_at_unix_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,6 +65,7 @@ impl AnimePlaybackService {
             resume_seconds: resume_seconds.unwrap_or(0) as f64,
             duration_seconds: None,
             watched_completed: false,
+            ended_at_unix_ms: None,
         }
     }
 
@@ -80,6 +83,36 @@ impl AnimePlaybackService {
             ..session.clone()
         }
     }
+
+    pub fn end_session(
+        &self,
+        session: &AnimePlaybackSession,
+        final_progress: Option<ProgressUpdate>,
+    ) -> AnimePlaybackSession {
+        let progress_seconds = final_progress
+            .as_ref()
+            .map(|value| value.progress_seconds)
+            .unwrap_or(session.resume_seconds);
+        let duration_seconds = final_progress
+            .as_ref()
+            .and_then(|value| value.duration_seconds)
+            .or(session.duration_seconds);
+
+        AnimePlaybackSession {
+            resume_seconds: progress_seconds,
+            duration_seconds,
+            watched_completed: watched_completed(progress_seconds, duration_seconds),
+            ended_at_unix_ms: Some(now_unix_ms()),
+            ..session.clone()
+        }
+    }
+}
+
+fn now_unix_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 pub fn watched_completed(progress_seconds: f64, duration_seconds: Option<f64>) -> bool {
@@ -234,5 +267,30 @@ mod tests {
         let key = build_episode_progress_key(&identity(), Some(1), Some(7));
         assert!(key.contains("season:Some(1)"));
         assert!(key.contains("episode:Some(7)"));
+    }
+
+    #[test]
+    fn ends_session_with_timestamp_and_final_progress() {
+        let service = AnimePlaybackService::new();
+        let session = service.start_session(
+            identity(),
+            Some(1),
+            Some(2),
+            AnimeTranslationMode::Sub,
+            source(AnimePlaybackKind::WebviewRemote),
+            Some(10),
+        );
+
+        let ended = service.end_session(
+            &session,
+            Some(ProgressUpdate {
+                progress_seconds: 580.0,
+                duration_seconds: Some(600.0),
+            }),
+        );
+
+        assert_eq!(ended.resume_seconds, 580.0);
+        assert!(ended.watched_completed);
+        assert!(ended.ended_at_unix_ms.is_some());
     }
 }

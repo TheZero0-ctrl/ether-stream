@@ -251,6 +251,9 @@ export type AnimeLatestResponse = {
 export type AnimeSearchRequest = {
   query: string;
   limit: number | null;
+  hasAnimationGenre?: boolean;
+  originalLanguage?: string | null;
+  originCountries?: string[];
 };
 
 export type AnimeSearchResponse = {

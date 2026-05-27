@@ -503,6 +503,9 @@ async fn fetch_allanime_episode_stream_url(
 
         for entry in source_urls {
             if let Some(source_url) = entry.get("sourceUrl").and_then(|v| v.as_str()) {
+                if is_blocked_source_host(source_url) {
+                    continue;
+                }
                 let source_name = entry
                     .get("sourceName")
                     .and_then(|v| v.as_str())
@@ -735,6 +738,10 @@ fn source_priority_rank(source_name: &str) -> i32 {
 }
 
 fn is_webview_source(source_name: &str, source_url: &str) -> bool {
+    if is_blocked_source_host(source_url) {
+        return false;
+    }
+
     source_name.eq_ignore_ascii_case("Mp4")
         || source_name.eq_ignore_ascii_case("Vn-Hls")
         || source_name.eq_ignore_ascii_case("Fm-Hls")
@@ -765,23 +772,57 @@ async fn follow_redirect_final_url(
 }
 
 fn is_playable_video_url(url: &str) -> bool {
+    if is_blocked_source_host(url) {
+        return false;
+    }
+
     let lower = url.to_lowercase();
-    lower.contains(".mp4")
-        || lower.contains(".m3u8")
-        || lower.contains("googlevideo.com")
-        || lower.contains(".webm")
-        || lower.contains(".mkv")
+    lower.contains("googlevideo.com") || has_direct_video_extension(url)
 }
 
 fn infer_playback_kind(url: &str) -> AnimePlaybackKind {
-    let lower = url.to_lowercase();
-    if lower.contains(".m3u8") {
+    if has_extension(url, &["m3u8"]) {
         AnimePlaybackKind::Hls
-    } else if lower.contains(".mp4") || lower.contains("googlevideo.com") || lower.contains(".webm") {
+    } else if has_direct_video_extension(url) || url.to_lowercase().contains("googlevideo.com") {
         AnimePlaybackKind::DirectVideo
     } else {
         AnimePlaybackKind::WebviewRemote
     }
+}
+
+fn has_direct_video_extension(url: &str) -> bool {
+    has_extension(url, &["mp4", "webm", "mkv", "m3u8"])
+}
+
+fn has_extension(url: &str, extensions: &[&str]) -> bool {
+    if let Ok(parsed) = reqwest::Url::parse(url) {
+        if let Some(last_segment) = parsed
+            .path_segments()
+            .and_then(|segments| segments.filter(|segment| !segment.is_empty()).next_back())
+        {
+            let lower = last_segment.to_ascii_lowercase();
+            return extensions.iter().any(|ext| lower.ends_with(&format!(".{ext}")));
+        }
+        return false;
+    }
+
+    let trimmed = url.split('?').next().unwrap_or(url);
+    let lower = trimmed.to_ascii_lowercase();
+    extensions.iter().any(|ext| lower.ends_with(&format!(".{ext}")))
+}
+
+fn is_blocked_source_host(url: &str) -> bool {
+    let blocked_hosts = ["vidnest.io", "www.vidnest.io"];
+    let Ok(parsed) = reqwest::Url::parse(url) else {
+        return false;
+    };
+    let Some(host) = parsed.host_str() else {
+        return false;
+    };
+
+    blocked_hosts
+        .iter()
+        .any(|blocked| host.eq_ignore_ascii_case(blocked))
 }
 
 async fn extract_stream_url_from_clock(
@@ -1084,5 +1125,21 @@ mod tests {
             infer_playback_kind("https://embed.example/watch/123"),
             AnimePlaybackKind::WebviewRemote
         ));
+        assert!(matches!(
+            infer_playback_kind("https://www.mp4upload.com/embed-abc123.html"),
+            AnimePlaybackKind::WebviewRemote
+        ));
+        assert!(!is_playable_video_url(
+            "https://www.mp4upload.com/embed-abc123.html"
+        ));
+        assert!(!is_playable_video_url("https://vidnest.io/e/455xrk3uude0"));
+        assert!(!is_webview_source("Vn-Hls", "https://vidnest.io/e/455xrk3uude0"));
+    }
+
+    #[test]
+    fn blocks_vidnest_hosts_globally() {
+        assert!(is_blocked_source_host("https://vidnest.io/e/455xrk3uude0"));
+        assert!(is_blocked_source_host("https://www.vidnest.io/e/455xrk3uude0"));
+        assert!(!is_blocked_source_host("https://mp4upload.com/embed-abc123.html"));
     }
 }
