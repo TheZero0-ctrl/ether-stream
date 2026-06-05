@@ -123,7 +123,7 @@ pub struct AnimePlaybackRequest {
     pub resume_seconds: Option<u64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum AnimePlaybackKind {
     WebviewRemote,
@@ -192,6 +192,7 @@ pub struct AnimeDownloadPayload {
     pub episode_number: Option<i32>,
     pub identity_key: String,
     pub file_name: String,
+    pub playback_kind: AnimePlaybackKind,
     pub playback_url: String,
     pub referer: Option<String>,
     pub request_headers: Vec<(String, String)>,

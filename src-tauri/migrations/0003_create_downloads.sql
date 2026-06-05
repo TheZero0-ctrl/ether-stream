@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS downloads (
+  id TEXT PRIMARY KEY,
+  payload_json TEXT NOT NULL,
+  status TEXT NOT NULL,
+  bytes_downloaded INTEGER NOT NULL DEFAULT 0,
+  output_path TEXT,
+  error TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

@@ -21,6 +21,7 @@ pub struct MappingInput {
     pub tmdb_episodes: Vec<MappingEpisodeInput>,
     pub anilist_episode_count: Option<i32>,
     pub released_episode_count: Option<i32>,
+    pub preferred_season_number: Option<i32>,
     pub provider: Option<AnimeProvider>,
 }
 
@@ -90,20 +91,21 @@ impl AnimeMappingService {
     }
 
     fn map_series(&self, input: MappingInput) -> MappingOutput {
+        let preferred_season_number = input.preferred_season_number.unwrap_or(1).max(1);
         if input.tmdb_episodes.is_empty()
             && input.anilist_episode_count.is_none()
             && input.released_episode_count.is_none()
         {
             return MappingOutput {
                 seasons: vec![AnimeSeason {
-                    season_number: 1,
-                    title: "Season 1".to_string(),
+                    season_number: preferred_season_number,
+                    title: format!("Season {preferred_season_number}"),
                     episode_count: Some(1),
                     source_kind: AnimeSeasonSourceKind::ProviderDerived,
                     episodes: vec![AnimeEpisode {
                         display_episode_number: 1,
                         canonical_episode_number: 1,
-                        season_number: 1,
+                        season_number: preferred_season_number,
                         title: Some("Episode 1".to_string()),
                         overview: None,
                         runtime_minutes: None,
@@ -158,7 +160,7 @@ impl AnimeMappingService {
                     episodes.push(AnimeEpisode {
                         display_episode_number: episode_number,
                         canonical_episode_number: episode_number,
-                        season_number: 1,
+                        season_number: preferred_season_number,
                         title: Some(format!("Episode {episode_number}")),
                         overview: None,
                         runtime_minutes: None,
@@ -179,18 +181,35 @@ impl AnimeMappingService {
             AnimeSeasonSourceKind::Tmdb
         };
 
-        MappingOutput {
-            seasons: vec![AnimeSeason {
-                season_number: 1,
+        let mut season_numbers: Vec<i32> = episodes.iter().map(|ep| ep.season_number).collect();
+        season_numbers.sort_unstable();
+        season_numbers.dedup();
+        if season_numbers.is_empty() {
+            season_numbers.push(preferred_season_number);
+        }
+
+        let mut seasons = Vec::new();
+        for season_number in season_numbers {
+            let season_episodes: Vec<AnimeEpisode> = episodes
+                .iter()
+                .filter(|ep| ep.season_number == season_number)
+                .cloned()
+                .collect();
+            seasons.push(AnimeSeason {
+                season_number,
                 title: if split_detected {
-                    "Season 1 (virtualized)".to_string()
+                    format!("Season {season_number} (virtualized)")
                 } else {
-                    "Season 1".to_string()
+                    format!("Season {season_number}")
                 },
-                episode_count: Some(episodes.len() as i32),
+                episode_count: Some(season_episodes.len() as i32),
                 source_kind: source_kind.clone(),
-                episodes,
-            }],
+                episodes: season_episodes,
+            });
+        }
+
+        MappingOutput {
+            seasons,
             diagnostics: MappingDiagnostics {
                 source_kind,
                 fallback_used: false,
@@ -240,6 +259,7 @@ mod tests {
             ],
             anilist_episode_count: Some(2),
             released_episode_count: Some(2),
+            preferred_season_number: None,
             provider: None,
         });
 
@@ -270,6 +290,7 @@ mod tests {
             ],
             anilist_episode_count: Some(24),
             released_episode_count: Some(24),
+            preferred_season_number: None,
             provider: None,
         });
 
@@ -285,6 +306,7 @@ mod tests {
             tmdb_episodes: vec![],
             anilist_episode_count: Some(24),
             released_episode_count: Some(8),
+            preferred_season_number: None,
             provider: None,
         });
 
@@ -299,6 +321,7 @@ mod tests {
             tmdb_episodes: vec![],
             anilist_episode_count: Some(12),
             released_episode_count: Some(40),
+            preferred_season_number: None,
             provider: None,
         });
 
@@ -313,6 +336,7 @@ mod tests {
             tmdb_episodes: vec![],
             anilist_episode_count: Some(12),
             released_episode_count: Some(0),
+            preferred_season_number: None,
             provider: None,
         });
 
@@ -327,6 +351,7 @@ mod tests {
             tmdb_episodes: vec![],
             anilist_episode_count: None,
             released_episode_count: None,
+            preferred_season_number: None,
             provider: None,
         });
 

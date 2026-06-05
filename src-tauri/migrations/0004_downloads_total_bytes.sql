@@ -1,0 +1,1 @@
+ALTER TABLE downloads ADD COLUMN total_bytes INTEGER NOT NULL DEFAULT 0;

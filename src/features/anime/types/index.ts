@@ -129,6 +129,7 @@ export type AnimeDownloadPayload = {
   episodeNumber: number | null;
   identityKey: string;
   fileName: string;
+  playbackKind: AnimePlaybackKind;
   playbackUrl: string;
   referer: string | null;
   requestHeaders: Array<[string, string]>;
@@ -184,6 +185,7 @@ export type AnimeGetEpisodeListRequest = {
   tmdbEpisodes: MappingEpisodeInput[];
   anilistEpisodeCount: number | null;
   releasedEpisodeCount: number | null;
+  preferredSeasonNumber: number | null;
 };
 
 export type AnimeGetEpisodeListResponse = {
@@ -229,6 +231,59 @@ export type AnimePrepareDownloadRequest = {
 
 export type AnimePrepareDownloadResponse = {
   payload: AnimeDownloadPayload;
+};
+
+export type AnimeExecuteDownloadRequest = {
+  downloadId: string;
+  payload: AnimeDownloadPayload;
+};
+
+export type AnimeExecuteDownloadResponse = {
+  outputPath: string;
+  bytesDownloaded: number;
+};
+
+export type AnimeCancelDownloadRequest = {
+  downloadId: string;
+};
+
+export type AnimeDownloadsEnqueueRequest = {
+  downloadId: string;
+  payload: AnimeDownloadPayload;
+};
+
+export type AnimeDownloadRecord = {
+  id: string;
+  payload: AnimeDownloadPayload;
+  status: string;
+  bytesDownloaded: number;
+  totalBytes: number;
+  outputPath: string | null;
+  error: string | null;
+};
+
+export type AnimeDownloadsListResponse = {
+  downloads: AnimeDownloadRecord[];
+};
+
+export type AnimeRemoveDownloadArtifactsRequest = {
+  payload: AnimeDownloadPayload;
+  outputPath: string | null;
+};
+
+export type AnimeGetLocalPlaybackSourceRequest = {
+  request: AnimePlaybackRequest;
+};
+
+export type AnimeGetLocalPlaybackSourceResponse = {
+  source: AnimePlaybackSource | null;
+};
+
+export type AnimePlaybackSourceOption = {
+  id: string;
+  label: string;
+  source: AnimePlaybackSource;
+  origin: "primary" | "background" | "local";
 };
 
 export type AnimeCatalogItem = {

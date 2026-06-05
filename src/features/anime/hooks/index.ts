@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  animeGetLocalPlaybackSource,
   animeGetLatest,
   animeSearch,
   animeGetDetails,
@@ -15,7 +16,7 @@ import type {
   AnimeGetEpisodeListRequest,
   AnimeGetSkipTimingsRequest,
   AnimePlaybackRequest,
-  AnimePlaybackSource,
+  AnimePlaybackSourceOption,
   AnimeSkipTimings,
   AnimeTranslationMode,
 } from "../types";
@@ -154,7 +155,8 @@ export function useAnimeEpisodes(request: AnimeGetEpisodeListRequest | null) {
 
 export function useAnimePlaybackSession(baseRequest: AnimePlaybackRequest | null) {
   const [translationMode, setTranslationMode] = useState<AnimeTranslationMode>("sub");
-  const [source, setSource] = useState<AnimePlaybackSource | null>(null);
+  const [sources, setSources] = useState<AnimePlaybackSourceOption[]>([]);
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const inFlightKey = useRef<string | null>(null);
@@ -164,6 +166,19 @@ export function useAnimePlaybackSession(baseRequest: AnimePlaybackRequest | null
     if (!baseRequest) return null;
     return { ...baseRequest, translationMode };
   }, [baseRequest, translationMode]);
+
+  const source = useMemo(
+    () => sources.find((item) => item.id === selectedSourceId)?.source ?? sources[0]?.source ?? null,
+    [sources, selectedSourceId],
+  );
+
+  const addSource = useCallback((option: AnimePlaybackSourceOption) => {
+    setSources((current) => {
+      const duplicate = current.some((item) => item.source.url === option.source.url);
+      if (duplicate) return current;
+      return [...current, option];
+    });
+  }, []);
 
   const resolve = useCallback(async () => {
     if (!request) return;
@@ -181,7 +196,43 @@ export function useAnimePlaybackSession(baseRequest: AnimePlaybackRequest | null
     try {
       const result = await resolvePlaybackSession(request);
       if (requestVersion.current === version) {
-        setSource(result.source);
+        const primaryId = `primary:${result.source.provider}:${result.source.playbackKind}`;
+        setSources([
+          {
+            id: primaryId,
+            label: `${result.source.provider} (${translationMode.toUpperCase()})`,
+            source: result.source,
+            origin: "primary",
+          },
+        ]);
+        setSelectedSourceId(primaryId);
+
+        const altMode: AnimeTranslationMode = translationMode === "sub" ? "dub" : "sub";
+        const backgroundRequest = { ...request, translationMode: altMode };
+
+        void resolvePlaybackSession(backgroundRequest)
+          .then((fallback) => {
+            if (requestVersion.current !== version) return;
+            addSource({
+              id: `background:${fallback.source.provider}:${altMode}`,
+              label: `${fallback.source.provider} (${altMode.toUpperCase()})`,
+              source: fallback.source,
+              origin: "background",
+            });
+          })
+          .catch(() => {});
+
+        void animeGetLocalPlaybackSource({ request })
+          .then((local) => {
+            if (requestVersion.current !== version || !local.source) return;
+            addSource({
+              id: "local:file",
+              label: "Local File",
+              source: local.source,
+              origin: "local",
+            });
+          })
+          .catch(() => {});
       }
     } catch (err: unknown) {
       if (requestVersion.current === version) {
@@ -205,7 +256,17 @@ export function useAnimePlaybackSession(baseRequest: AnimePlaybackRequest | null
     };
   }, [request, resolve]);
 
-  return { translationMode, setTranslationMode, source, error, loading, resolve };
+  return {
+    translationMode,
+    setTranslationMode,
+    source,
+    sources,
+    selectedSourceId,
+    setSelectedSourceId,
+    error,
+    loading,
+    resolve,
+  };
 }
 
 export function useAnimeSkipState(request: AnimeGetSkipTimingsRequest | null) {

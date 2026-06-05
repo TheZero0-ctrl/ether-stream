@@ -7,8 +7,10 @@ mod services;
 
 use commands::anime::{
     anime_get_details, anime_get_episode_list, anime_get_latest, anime_get_resume_progress,
-    anime_get_skip_timings, anime_prepare_download, anime_resolve_playback, anime_search,
+    anime_get_skip_timings, anime_prepare_download, anime_execute_download, anime_get_local_playback_source,
+    anime_resolve_playback, anime_search, anime_cancel_download, anime_remove_download_artifacts,
     anime_set_last_episode, anime_set_translation_mode, anime_update_progress,
+    anime_downloads_enqueue, anime_downloads_list, anime_downloads_cancel, anime_downloads_remove,
 };
 
 #[derive(Serialize)]
@@ -59,7 +61,11 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let db = database::initialize(app.handle())?;
+            let pool = db.0.clone();
             app.manage(db);
+            tauri::async_runtime::spawn(async move {
+                crate::services::downloads::start_worker(pool, 2).await;
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -74,7 +80,15 @@ pub fn run() {
             anime_update_progress,
             anime_set_last_episode,
             anime_set_translation_mode,
-            anime_prepare_download
+            anime_prepare_download,
+            anime_execute_download,
+            anime_get_local_playback_source,
+            anime_cancel_download,
+            anime_remove_download_artifacts,
+            anime_downloads_enqueue,
+            anime_downloads_list,
+            anime_downloads_cancel,
+            anime_downloads_remove
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

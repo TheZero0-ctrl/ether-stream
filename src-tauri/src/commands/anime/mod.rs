@@ -23,7 +23,9 @@ use self::resume::parse_episode_progress_key;
 use self::details_commands::handle_anime_get_details;
 use self::playback_commands::{
     handle_get_episode_list, handle_get_skip_timings, handle_prepare_download,
-    handle_resolve_playback, handle_set_translation_mode,
+    handle_resolve_playback, handle_set_translation_mode, handle_execute_download,
+    handle_cancel_download,
+    handle_get_local_playback_source, handle_remove_download_artifacts,
 };
 use self::progress_commands::{
     handle_get_resume_progress, handle_set_last_episode, handle_update_progress,
@@ -66,6 +68,7 @@ pub struct AnimeGetEpisodeListRequest {
     pub tmdb_episodes: Vec<MappingEpisodeInput>,
     pub anilist_episode_count: Option<i32>,
     pub released_episode_count: Option<i32>,
+    pub preferred_season_number: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -119,6 +122,58 @@ pub struct AnimePrepareDownloadRequest {
 #[serde(rename_all = "camelCase")]
 pub struct AnimePrepareDownloadResponse {
     pub payload: AnimeDownloadPayload,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnimeExecuteDownloadRequest {
+    pub download_id: String,
+    pub payload: AnimeDownloadPayload,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnimeExecuteDownloadResponse {
+    pub output_path: String,
+    pub bytes_downloaded: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnimeCancelDownloadRequest {
+    pub download_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnimeDownloadsEnqueueRequest {
+    pub download_id: String,
+    pub payload: AnimeDownloadPayload,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnimeDownloadsListResponse {
+    pub downloads: Vec<crate::services::downloads::DownloadRecord>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnimeRemoveDownloadArtifactsRequest {
+    pub payload: AnimeDownloadPayload,
+    pub output_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnimeGetLocalPlaybackSourceRequest {
+    pub request: AnimePlaybackRequest,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnimeGetLocalPlaybackSourceResponse {
+    pub source: Option<AnimePlaybackSource>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -378,6 +433,72 @@ pub fn anime_prepare_download(
     request: AnimePrepareDownloadRequest,
 ) -> Result<AnimePrepareDownloadResponse, AnimeCommandError> {
     handle_prepare_download(request)
+}
+
+#[tauri::command]
+pub async fn anime_execute_download(
+    request: AnimeExecuteDownloadRequest,
+) -> Result<AnimeExecuteDownloadResponse, AnimeCommandError> {
+    handle_execute_download(request).await
+}
+
+#[tauri::command]
+pub fn anime_cancel_download(
+    request: AnimeCancelDownloadRequest,
+) -> Result<(), AnimeCommandError> {
+    handle_cancel_download(request)
+}
+
+#[tauri::command]
+pub fn anime_remove_download_artifacts(
+    request: AnimeRemoveDownloadArtifactsRequest,
+) -> Result<(), AnimeCommandError> {
+    handle_remove_download_artifacts(request)
+}
+
+#[tauri::command]
+pub async fn anime_downloads_enqueue(
+    request: AnimeDownloadsEnqueueRequest,
+    db: State<'_, AppDatabase>,
+) -> Result<(), AnimeCommandError> {
+    crate::services::downloads::enqueue(&db.0, &request.download_id, &request.payload).await
+}
+
+#[tauri::command]
+pub async fn anime_downloads_list(
+    db: State<'_, AppDatabase>,
+) -> Result<AnimeDownloadsListResponse, AnimeCommandError> {
+    let downloads = crate::services::downloads::list(&db.0).await?;
+    Ok(AnimeDownloadsListResponse { downloads })
+}
+
+#[tauri::command]
+pub async fn anime_downloads_cancel(
+    request: AnimeCancelDownloadRequest,
+    db: State<'_, AppDatabase>,
+) -> Result<(), AnimeCommandError> {
+    crate::services::downloads::cancel(&db.0, &request.download_id).await
+}
+
+#[tauri::command]
+pub async fn anime_downloads_remove(
+    request: AnimeCancelDownloadRequest,
+    db: State<'_, AppDatabase>,
+) -> Result<(), AnimeCommandError> {
+    if let Some(payload) = crate::services::downloads::remove(&db.0, &request.download_id).await? {
+        let _ = handle_remove_download_artifacts(AnimeRemoveDownloadArtifactsRequest {
+            payload,
+            output_path: None,
+        });
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn anime_get_local_playback_source(
+    request: AnimeGetLocalPlaybackSourceRequest,
+) -> Result<AnimeGetLocalPlaybackSourceResponse, AnimeCommandError> {
+    handle_get_local_playback_source(request)
 }
 
 fn build_download_file_name(

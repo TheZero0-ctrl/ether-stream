@@ -536,6 +536,189 @@ button {
   color: var(--muted);
 }
 
+.download-action {
+  border: 1px solid rgba(125, 199, 187, 0.5);
+  border-radius: 10px;
+  background: rgba(125, 199, 187, 0.16);
+  color: var(--text);
+  padding: 9px 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.download-action:hover {
+  background: rgba(125, 199, 187, 0.24);
+  border-color: rgba(125, 199, 187, 0.75);
+}
+
+.download-action:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+
+.download-message {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.download-queue-list {
+  display: grid;
+  gap: 8px;
+}
+
+.source-picker {
+  display: grid;
+  gap: 6px;
+}
+
+.source-picker select {
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%),
+    linear-gradient(to right, rgba(125, 199, 187, 0.16), rgba(255, 255, 255, 0.03));
+  background-position:
+    calc(100% - 16px) calc(50% - 1px),
+    calc(100% - 11px) calc(50% - 1px),
+    0 0;
+  background-size: 5px 5px, 5px 5px, 100% 100%;
+  background-repeat: no-repeat;
+  color: var(--text);
+  padding: 8px 32px 8px 10px;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+}
+
+.session-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+}
+
+.session-meta-grid p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.source-picker select:hover {
+  border-color: rgba(125, 199, 187, 0.62);
+}
+
+.source-picker select:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.source-picker select:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.source-picker option {
+  background: #0a2a2d;
+  color: var(--text);
+}
+
+.download-row {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  display: grid;
+  gap: 4px;
+}
+
+.download-row-title {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.download-row-meta {
+  margin: 0;
+  text-transform: capitalize;
+}
+
+.download-row-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.queue-action {
+  border: 1px solid rgba(125, 199, 187, 0.45);
+  background: rgba(125, 199, 187, 0.1);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.queue-action:hover {
+  background: rgba(125, 199, 187, 0.2);
+}
+
+.queue-action.is-active {
+  background: rgba(125, 199, 187, 0.28);
+  border-color: rgba(125, 199, 187, 0.8);
+}
+
+.collection-tabs {
+  margin-bottom: 12px;
+}
+
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #022223;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.download-progress {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.download-progress-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 240ms ease;
+}
+
+.download-progress-bar.indeterminate {
+  width: 40%;
+  animation: indeterminate-slide 1.2s ease-in-out infinite;
+}
+
+@keyframes indeterminate-slide {
+  0% {
+    margin-left: -40%;
+  }
+  100% {
+    margin-left: 100%;
+  }
+}
+
 .loading-spinner {
   width: 20px;
   height: 20px;
